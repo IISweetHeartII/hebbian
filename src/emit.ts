@@ -349,7 +349,7 @@ function sortedActive(neurons: Neuron[], n: number): Neuron[] {
 
 /** Strength prefix based on counter value. */
 function strengthPrefix(counter: number): string {
-	if (counter >= 10) return '**[절대]** ';
-	if (counter >= 5) return '**[반드시]** ';
+	if (counter >= 10) return '**[ABSOLUTE]** ';
+	if (counter >= 5) return '**[MUST]** ';
 	return '';
 }

@@ -115,8 +115,8 @@ describe('emitRegionRules (Tier 3)', () => {
 		const brainstem = brain.regions.find((r: any) => r.name === 'brainstem');
 		const output = emitRegionRules(brainstem);
 
-		// counter 103 → should have 절대 prefix
-		expect(output).toContain('절대');
+		// counter 103 → should have ABSOLUTE prefix
+		expect(output).toContain('ABSOLUTE');
 	});
 
 	it('shows axon connections', () => {

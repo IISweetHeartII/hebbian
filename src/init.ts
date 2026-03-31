@@ -16,7 +16,7 @@ interface RegionTemplate {
 const REGION_TEMPLATES: Record<RegionName, RegionTemplate> = {
 	brainstem: {
 		description: 'Absolute principles. Immutable. Read-only conscience.\nP0 — highest priority. bomb here halts EVERYTHING.',
-		starters: ['禁fallback', '推execute_not_debate'],
+		starters: ['NO_fallback', 'DO_execute_not_debate'],
 	},
 	limbic: {
 		description: 'Emotional filters and somatic markers.\nP1 — automatic, influences downstream regions.',
@@ -88,6 +88,6 @@ export function initBrain(brainPath: string): void {
 	console.log(`   7 regions created: ${REGIONS.join(', ')}`);
 	console.log('');
 	console.log('   Next steps:');
-	console.log(`   hebbian grow brainstem/禁your_rule --brain ${brainPath}`);
+	console.log(`   hebbian grow brainstem/NO_your_rule --brain ${brainPath}`);
 	console.log(`   hebbian emit claude --brain ${brainPath}`);
 }
