@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 // hebbian — Folder-as-Neuron Brain for Any AI Agent
 //
 // "Neurons that fire together, wire together." — Donald Hebb (1949)
@@ -19,6 +17,7 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
+import type { SignalType } from './constants';
 
 const VERSION = '0.1.0';
 
@@ -58,14 +57,14 @@ EXAMPLES:
 `.trim();
 
 /** Resolve brain root path from --brain flag, env var, or defaults */
-function resolveBrainRoot(brainFlag) {
+function resolveBrainRoot(brainFlag: string | undefined): string {
 	if (brainFlag) return resolve(brainFlag);
 	if (process.env.HEBBIAN_BRAIN) return resolve(process.env.HEBBIAN_BRAIN);
 	if (existsSync(resolve('./brain'))) return resolve('./brain');
 	return resolve(process.env.HOME || '~', 'hebbian', 'brain');
 }
 
-async function main(argv) {
+async function main(argv: string[]): Promise<void> {
 	const { values, positionals } = parseArgs({
 		args: argv,
 		options: {
@@ -91,7 +90,7 @@ async function main(argv) {
 		return;
 	}
 
-	const brainRoot = resolveBrainRoot(values.brain);
+	const brainRoot = resolveBrainRoot(values.brain as string | undefined);
 
 	switch (command) {
 		case 'init': {
@@ -100,7 +99,7 @@ async function main(argv) {
 				console.error('Usage: hebbian init <path>');
 				process.exit(1);
 			}
-			const { initBrain } = await import('../lib/init.js');
+			const { initBrain } = await import('./init');
 			await initBrain(resolve(target));
 			break;
 		}
@@ -110,7 +109,7 @@ async function main(argv) {
 				console.error('Usage: hebbian emit <target> (claude/cursor/gemini/copilot/generic/all)');
 				process.exit(1);
 			}
-			const { emitToTarget } = await import('../lib/emit.js');
+			const { emitToTarget } = await import('./emit');
 			await emitToTarget(brainRoot, target);
 			break;
 		}
@@ -120,7 +119,7 @@ async function main(argv) {
 				console.error('Usage: hebbian fire <neuron-path>');
 				process.exit(1);
 			}
-			const { fireNeuron } = await import('../lib/fire.js');
+			const { fireNeuron } = await import('./fire');
 			await fireNeuron(brainRoot, neuronPath);
 			break;
 		}
@@ -130,7 +129,7 @@ async function main(argv) {
 				console.error('Usage: hebbian grow <neuron-path>');
 				process.exit(1);
 			}
-			const { growNeuron } = await import('../lib/grow.js');
+			const { growNeuron } = await import('./grow');
 			await growNeuron(brainRoot, neuronPath);
 			break;
 		}
@@ -140,7 +139,7 @@ async function main(argv) {
 				console.error('Usage: hebbian rollback <neuron-path>');
 				process.exit(1);
 			}
-			const { rollbackNeuron } = await import('../lib/rollback.js');
+			const { rollbackNeuron } = await import('./rollback');
 			await rollbackNeuron(brainRoot, neuronPath);
 			break;
 		}
@@ -151,38 +150,38 @@ async function main(argv) {
 				console.error('Usage: hebbian signal <type> <neuron-path>  (type: dopamine/bomb/memory)');
 				process.exit(1);
 			}
-			const { signalNeuron } = await import('../lib/signal.js');
-			await signalNeuron(brainRoot, neuronPath, signalType);
+			const { signalNeuron } = await import('./signal');
+			await signalNeuron(brainRoot, neuronPath, signalType as SignalType);
 			break;
 		}
 		case 'decay': {
-			const days = values.days ? parseInt(values.days, 10) : 30;
-			const { runDecay } = await import('../lib/decay.js');
+			const days = values.days ? parseInt(values.days as string, 10) : 30;
+			const { runDecay } = await import('./decay');
 			await runDecay(brainRoot, days);
 			break;
 		}
 		case 'dedup': {
-			const { runDedup } = await import('../lib/dedup.js');
+			const { runDedup } = await import('./dedup');
 			runDedup(brainRoot);
 			break;
 		}
 		case 'snapshot': {
-			const { gitSnapshot } = await import('../lib/snapshot.js');
+			const { gitSnapshot } = await import('./snapshot');
 			gitSnapshot(brainRoot);
 			break;
 		}
 		case 'watch': {
-			const { startWatch } = await import('../lib/watch.js');
+			const { startWatch } = await import('./watch');
 			await startWatch(brainRoot);
 			break;
 		}
 		case 'diag':
 		case 'stats': {
-			const { scanBrain } = await import('../lib/scanner.js');
-			const { runSubsumption } = await import('../lib/subsumption.js');
+			const { scanBrain } = await import('./scanner');
+			const { runSubsumption } = await import('./subsumption');
 			const brain = scanBrain(brainRoot);
 			const result = runSubsumption(brain);
-			const { printDiag } = await import('../lib/emit.js');
+			const { printDiag } = await import('./emit');
 			printDiag(brain, result);
 			break;
 		}
@@ -193,7 +192,7 @@ async function main(argv) {
 	}
 }
 
-main(process.argv.slice(2)).catch((err) => {
+main(process.argv.slice(2)).catch((err: Error) => {
 	console.error(err.message);
 	process.exit(1);
 });

@@ -9,12 +9,8 @@ import { join } from 'node:path';
 /**
  * Increment a neuron's counter by 1.
  * If the neuron doesn't exist, auto-grows it with counter=1.
- *
- * @param {string} brainRoot - Absolute path to brain root
- * @param {string} neuronPath - Relative path (e.g. "cortex/frontend/禁console_log")
- * @returns {number} New counter value
  */
-export function fireNeuron(brainRoot, neuronPath) {
+export function fireNeuron(brainRoot: string, neuronPath: string): number {
 	const fullPath = join(brainRoot, neuronPath);
 
 	// Auto-grow if neuron doesn't exist
@@ -42,10 +38,8 @@ export function fireNeuron(brainRoot, neuronPath) {
 
 /**
  * Get current counter value from the highest N.neuron file.
- * @param {string} dir
- * @returns {number}
  */
-export function getCurrentCounter(dir) {
+export function getCurrentCounter(dir: string): number {
 	let max = 0;
 	try {
 		for (const entry of readdirSync(dir)) {

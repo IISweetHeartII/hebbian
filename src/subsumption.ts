@@ -9,32 +9,14 @@
 //   P0 brainstem → P1 limbic → P2 hippocampus → P3 sensors → P4 cortex → P5 ego → P6 prefrontal
 //   If bomb at P(n), all P(n+1)→P6 are BLOCKED.
 
-/**
- * @typedef {import('./scanner.js').Brain} Brain
- * @typedef {import('./scanner.js').Region} Region
- */
-
-/**
- * @typedef {object} SubsumptionResult
- * @property {Region[]} activeRegions   - Regions that passed the cascade
- * @property {Region[]} blockedRegions  - Regions blocked by upstream bomb
- * @property {string} bombSource        - Name of the region that triggered the bomb ("" if none)
- * @property {number} firedNeurons      - Count of non-dormant neurons in active regions
- * @property {number} totalNeurons      - Count of all neurons across all regions
- * @property {number} totalCounter      - Sum of all counters in active, non-dormant neurons
- */
+import type { Brain, Region, SubsumptionResult } from './types';
 
 /**
  * Run the subsumption cascade on a scanned brain.
- *
- * @param {Brain} brain
- * @returns {SubsumptionResult}
  */
-export function runSubsumption(brain) {
-	/** @type {Region[]} */
-	const activeRegions = [];
-	/** @type {Region[]} */
-	const blockedRegions = [];
+export function runSubsumption(brain: Brain): SubsumptionResult {
+	const activeRegions: Region[] = [];
+	const blockedRegions: Region[] = [];
 	let bombSource = '';
 	let firedNeurons = 0;
 	let totalNeurons = 0;

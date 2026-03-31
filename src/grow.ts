@@ -9,19 +9,21 @@
 
 import { mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { REGIONS, JACCARD_THRESHOLD } from './constants.js';
-import { tokenize, jaccardSimilarity } from './similarity.js';
-import { fireNeuron } from './fire.js';
+import { REGIONS, JACCARD_THRESHOLD } from './constants';
+import { tokenize, jaccardSimilarity } from './similarity';
+import { fireNeuron } from './fire';
+
+export interface GrowResult {
+	action: 'grew' | 'fired';
+	path: string;
+	counter: number;
+}
 
 /**
  * Grow a new neuron at the given path.
  * If a similar neuron already exists in the same region, fires it instead.
- *
- * @param {string} brainRoot - Absolute path to brain root
- * @param {string} neuronPath - Relative path (e.g. "cortex/frontend/禁console_log")
- * @returns {{ action: 'grew' | 'fired', path: string, counter: number }}
  */
-export function growNeuron(brainRoot, neuronPath) {
+export function growNeuron(brainRoot: string, neuronPath: string): GrowResult {
 	const fullPath = join(brainRoot, neuronPath);
 
 	// If neuron already exists, just fire it
@@ -32,12 +34,12 @@ export function growNeuron(brainRoot, neuronPath) {
 
 	// Extract region name and leaf name
 	const parts = neuronPath.split('/');
-	const regionName = parts[0];
-	if (!REGIONS.includes(regionName)) {
+	const regionName = parts[0]!;
+	if (!(REGIONS as readonly string[]).includes(regionName)) {
 		throw new Error(`Invalid region: ${regionName}. Valid: ${REGIONS.join(', ')}`);
 	}
 
-	const leafName = parts[parts.length - 1];
+	const leafName = parts[parts.length - 1]!;
 	const newTokens = tokenize(leafName);
 
 	// Search for similar neurons in the same region
@@ -61,12 +63,8 @@ export function growNeuron(brainRoot, neuronPath) {
 
 /**
  * Walk a region and find a neuron whose name is similar to the given tokens.
- * @param {string} dir - Current directory
- * @param {string} regionRoot - Region root for relative paths
- * @param {string[]} targetTokens - Tokens to compare against
- * @returns {string|null} Absolute path of matching neuron, or null
  */
-function findSimilar(dir, regionRoot, targetTokens) {
+function findSimilar(dir: string, regionRoot: string, targetTokens: string[]): string | null {
 	let entries;
 	try {
 		entries = readdirSync(dir, { withFileTypes: true });

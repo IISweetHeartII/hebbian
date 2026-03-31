@@ -10,9 +10,8 @@ import { tmpdir } from 'node:os';
 
 /**
  * Create a fully populated test brain in a temp directory.
- * @returns {{ root: string, cleanup: () => void }}
  */
-export function setupTestBrain() {
+export function setupTestBrain(): { root: string } {
 	const root = mkdtempSync(join(tmpdir(), 'hebb-test-'));
 
 	// ─── Region: brainstem (P0) ───
@@ -55,11 +54,8 @@ export function setupTestBrain() {
 
 /**
  * Create a single neuron (folder + counter file).
- * @param {string} root - Brain root directory
- * @param {string} path - Neuron path relative to root (e.g. "cortex/frontend/禁console_log")
- * @param {number} counter - Counter value for N.neuron file
  */
-export function neuron(root, path, counter) {
+export function neuron(root: string, path: string, counter: number): void {
 	const dir = join(root, path);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, `${counter}.neuron`), '', 'utf8');
@@ -67,10 +63,8 @@ export function neuron(root, path, counter) {
 
 /**
  * Create a bomb in a neuron directory.
- * @param {string} root - Brain root directory
- * @param {string} path - Neuron path relative to root
  */
-export function plantBomb(root, path) {
+export function plantBomb(root: string, path: string): void {
 	const dir = join(root, path);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, 'bomb.neuron'), '', 'utf8');
@@ -78,10 +72,8 @@ export function plantBomb(root, path) {
 
 /**
  * Remove a bomb from a neuron directory.
- * @param {string} root - Brain root directory
- * @param {string} path - Neuron path relative to root
  */
-export function removeBomb(root, path) {
+export function removeBomb(root: string, path: string): void {
 	const bombPath = join(root, path, 'bomb.neuron');
 	try { unlinkSync(bombPath); } catch {}
 }
@@ -89,10 +81,8 @@ export function removeBomb(root, path) {
 
 /**
  * Create a dormant marker in a neuron directory.
- * @param {string} root - Brain root directory
- * @param {string} path - Neuron path relative to root
  */
-export function markDormant(root, path) {
+export function markDormant(root: string, path: string): void {
 	const dir = join(root, path);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, 'decay.dormant'), `Dormant since ${new Date().toISOString()}`, 'utf8');
@@ -100,11 +90,8 @@ export function markDormant(root, path) {
 
 /**
  * Create a dopamine signal in a neuron directory.
- * @param {string} root - Brain root directory
- * @param {string} path - Neuron path relative to root
- * @param {number} [level=1] - Dopamine level
  */
-export function addDopamine(root, path, level = 1) {
+export function addDopamine(root: string, path: string, level: number = 1): void {
 	const dir = join(root, path);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, `dopamine${level}.neuron`), '', 'utf8');
@@ -112,11 +99,8 @@ export function addDopamine(root, path, level = 1) {
 
 /**
  * Create a contra (inhibitory) signal in a neuron directory.
- * @param {string} root - Brain root directory
- * @param {string} path - Neuron path relative to root
- * @param {number} counter - Contra counter value
  */
-export function addContra(root, path, counter) {
+export function addContra(root: string, path: string, counter: number): void {
 	const dir = join(root, path);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, `${counter}.contra`), '', 'utf8');
@@ -124,11 +108,8 @@ export function addContra(root, path, counter) {
 
 /**
  * Create a memory signal in a neuron directory.
- * @param {string} root - Brain root directory
- * @param {string} path - Neuron path relative to root
- * @param {number} [level=1] - Memory level
  */
-export function addMemory(root, path, level = 1) {
+export function addMemory(root: string, path: string, level: number = 1): void {
 	const dir = join(root, path);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, `memory${level}.neuron`), '', 'utf8');

@@ -6,20 +6,19 @@
 //
 // Pass criteria: SCC >= 95%, MLA >= 90%
 
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { setupTestBrain, neuron, plantBomb, removeBomb, markDormant, addDopamine } from './fixtures/setup.js';
-import { scanBrain } from '../lib/scanner.js';
-import { runSubsumption } from '../lib/subsumption.js';
-import { fireNeuron } from '../lib/fire.js';
-import { rollbackNeuron } from '../lib/rollback.js';
-import { growNeuron } from '../lib/grow.js';
-import { signalNeuron } from '../lib/signal.js';
-import { runDecay } from '../lib/decay.js';
-import { REGIONS } from '../lib/constants.js';
+import { setupTestBrain, neuron, plantBomb, removeBomb, markDormant, addDopamine } from './fixtures/setup';
+import { scanBrain } from '../src/scanner';
+import { runSubsumption } from '../src/subsumption';
+import { fireNeuron } from '../src/fire';
+import { rollbackNeuron } from '../src/rollback';
+import { growNeuron } from '../src/grow';
+import { signalNeuron } from '../src/signal';
+import { runDecay } from '../src/decay';
+import { REGIONS } from '../src/constants';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SCC: Subsumption Cascade Correctness (20 scenarios)
@@ -30,8 +29,8 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 	it('S-01: no bomb → all 7 regions active', () => {
 		const { root } = setupTestBrain();
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.activeRegions.length, 7);
-		assert.equal(result.bombSource, '');
+		expect(result.activeRegions.length).toBe(7);
+		expect(result.bombSource).toBe('');
 	});
 
 	// S-02 through S-08: bomb in each region
@@ -41,7 +40,7 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 			const { root } = setupTestBrain();
 			// Plant bomb in a neuron in this region
 			const brain = scanBrain(root);
-			const r = brain.regions.find((r) => r.name === region);
+			const r = brain.regions.find((r: any) => r.name === region);
 			if (r.neurons.length > 0) {
 				plantBomb(root, `${region}/${r.neurons[0].path}`);
 			} else {
@@ -49,8 +48,8 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 				neuron(root, `${region}/bomb_test`, 1);
 			}
 			const result = runSubsumption(scanBrain(root));
-			assert.equal(result.bombSource, region);
-			assert.equal(result.activeRegions.length, i);
+			expect(result.bombSource).toBe(region);
+			expect(result.activeRegions.length).toBe(i);
 		});
 	}
 
@@ -59,7 +58,7 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 		const { root } = setupTestBrain();
 		plantBomb(root, 'hippocampus/error_patterns');
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.bombSource, 'hippocampus');
+		expect(result.bombSource).toBe('hippocampus');
 	});
 
 	// S-10: P0 bomb → firedNeurons = 0
@@ -67,7 +66,7 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 		const { root } = setupTestBrain();
 		plantBomb(root, 'brainstem/禁fallback');
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.firedNeurons, 0);
+		expect(result.firedNeurons).toBe(0);
 	});
 
 	// S-11: bomb removed → full recovery
@@ -75,12 +74,12 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 		const { root } = setupTestBrain();
 		plantBomb(root, 'cortex/frontend/禁console_log');
 		let result = runSubsumption(scanBrain(root));
-		assert.equal(result.bombSource, 'cortex');
+		expect(result.bombSource).toBe('cortex');
 
 		removeBomb(root, 'cortex/frontend/禁console_log');
 		result = runSubsumption(scanBrain(root));
-		assert.equal(result.bombSource, '');
-		assert.equal(result.activeRegions.length, 7);
+		expect(result.bombSource).toBe('');
+		expect(result.activeRegions.length).toBe(7);
 	});
 
 	// S-12: dormant neurons excluded from firedNeurons
@@ -88,7 +87,7 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 		const { root } = setupTestBrain();
 		markDormant(root, 'ego/tone/concise');
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.firedNeurons, 14);
+		expect(result.firedNeurons).toBe(14);
 	});
 
 	// S-13: dormant does NOT affect totalNeurons
@@ -96,23 +95,23 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 		const { root } = setupTestBrain();
 		markDormant(root, 'ego/tone/concise');
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.totalNeurons, 15);
+		expect(result.totalNeurons).toBe(15);
 	});
 
 	// S-14: empty brain → 0 active neurons, 7 active regions
 	it('S-14: empty brain → 0 neurons, 7 regions', () => {
 		const root = mkdtempSync(join(tmpdir(), 'hebb-scc14-'));
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.activeRegions.length, 7);
-		assert.equal(result.firedNeurons, 0);
+		expect(result.activeRegions.length).toBe(7);
+		expect(result.firedNeurons).toBe(0);
 	});
 
 	// S-15: lower P (brainstem) suppresses higher P (prefrontal)
 	it('S-15: subsumption order is P0→P6', () => {
 		const { root } = setupTestBrain();
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.activeRegions[0].name, 'brainstem');
-		assert.equal(result.activeRegions[6].name, 'prefrontal');
+		expect(result.activeRegions[0].name).toBe('brainstem');
+		expect(result.activeRegions[6].name).toBe('prefrontal');
 	});
 
 	// S-16: totalCounter sums only active non-dormant
@@ -120,7 +119,7 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 		const { root } = setupTestBrain();
 		markDormant(root, 'cortex/frontend/禁console_log'); // counter=40
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.totalCounter, 621 - 40);
+		expect(result.totalCounter).toBe(621 - 40);
 	});
 
 	// S-17: bomb in P2 → P0, P1 active
@@ -128,8 +127,8 @@ describe('SCC: Subsumption Cascade Correctness', () => {
 		const { root } = setupTestBrain();
 		plantBomb(root, 'hippocampus/error_patterns');
 		const result = runSubsumption(scanBrain(root));
-		const active = result.activeRegions.map((r) => r.name);
-		assert.deepEqual(active, ['brainstem', 'limbic']);
+		const active = result.activeRegions.map((r: any) => r.name);
+		expect(active).toEqual(['brainstem', 'limbic']);
 	});
 });
 
@@ -142,56 +141,56 @@ describe('MLA: Memory Lifecycle Accuracy', () => {
 	it('M-01: fire increments counter (40 → 41)', () => {
 		const { root } = setupTestBrain();
 		const result = fireNeuron(root, 'cortex/frontend/禁console_log');
-		assert.equal(result, 41);
+		expect(result).toBe(41);
 	});
 
 	// M-02: rollback decrements counter
 	it('M-02: rollback decrements counter (40 → 39)', () => {
 		const { root } = setupTestBrain();
 		const result = rollbackNeuron(root, 'cortex/frontend/禁console_log');
-		assert.equal(result, 39);
+		expect(result).toBe(39);
 	});
 
 	// M-03: rollback minimum boundary (counter=1)
 	it('M-03: rollback enforces minimum counter=1', () => {
 		const root = mkdtempSync(join(tmpdir(), 'hebb-mla3-'));
 		neuron(root, 'cortex/test', 1);
-		assert.throws(() => rollbackNeuron(root, 'cortex/test'), /minimum/i);
+		expect(() => rollbackNeuron(root, 'cortex/test')).toThrow(/minimum/i);
 	});
 
 	// M-04: grow creates counter=1
 	it('M-04: grow creates neuron with counter=1', () => {
 		const { root } = setupTestBrain();
 		const result = growNeuron(root, 'cortex/new_concept');
-		assert.equal(result.counter, 1);
-		assert.equal(result.action, 'grew');
+		expect(result.counter).toBe(1);
+		expect(result.action).toBe('grew');
 	});
 
 	// M-05: invalid region rejected
 	it('M-05: invalid region rejected', () => {
 		const { root } = setupTestBrain();
-		assert.throws(() => growNeuron(root, 'invalid_region/test'), /invalid region/i);
+		expect(() => growNeuron(root, 'invalid_region/test')).toThrow(/invalid region/i);
 	});
 
 	// M-06: dopamine signal
 	it('M-06: dopamine signal creates dopamine1.neuron', () => {
 		const { root } = setupTestBrain();
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'dopamine');
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', 'dopamine1.neuron')));
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', 'dopamine1.neuron'))).toBeTruthy();
 	});
 
 	// M-07: bomb signal
 	it('M-07: bomb signal creates bomb.neuron', () => {
 		const { root } = setupTestBrain();
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'bomb');
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', 'bomb.neuron')));
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', 'bomb.neuron'))).toBeTruthy();
 	});
 
 	// M-08: memory signal
 	it('M-08: memory signal creates memory1.neuron', () => {
 		const { root } = setupTestBrain();
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'memory');
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', 'memory1.neuron')));
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', 'memory1.neuron'))).toBeTruthy();
 	});
 
 	// M-09: bomb triggers cascade
@@ -199,16 +198,15 @@ describe('MLA: Memory Lifecycle Accuracy', () => {
 		const { root } = setupTestBrain();
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'bomb');
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.bombSource, 'cortex');
+		expect(result.bombSource).toBe('cortex');
 	});
 
 	// M-10: unknown signal rejected
 	it('M-10: unknown signal type rejected', () => {
 		const { root } = setupTestBrain();
-		assert.throws(
+		expect(
 			() => signalNeuron(root, 'cortex/frontend/禁console_log', 'invalid'),
-			/invalid signal/i,
-		);
+		).toThrow(/invalid signal/i);
 	});
 
 	// M-11: dormant neuron excluded from firedNeurons
@@ -216,22 +214,22 @@ describe('MLA: Memory Lifecycle Accuracy', () => {
 		const { root } = setupTestBrain();
 		markDormant(root, 'cortex/frontend/禁console_log');
 		const result = runSubsumption(scanBrain(root));
-		assert.equal(result.firedNeurons, 14);
+		expect(result.firedNeurons).toBe(14);
 	});
 
 	// M-12: synaptic merge (Jaccard >= 0.6)
 	it('M-12: similar neuron consolidated via Jaccard merge', () => {
 		const { root } = setupTestBrain();
 		const result = growNeuron(root, 'ego/tone/data_driven_approach');
-		assert.equal(result.action, 'fired');
+		expect(result.action).toBe('fired');
 	});
 
 	// M-13: deduplication no-crash (grow existing)
 	it('M-13: growing existing neuron fires instead', () => {
 		const { root } = setupTestBrain();
 		const result = growNeuron(root, 'cortex/frontend/禁console_log');
-		assert.equal(result.action, 'fired');
-		assert.equal(result.counter, 41);
+		expect(result.action).toBe('fired');
+		expect(result.counter).toBe(41);
 	});
 
 	// M-14: decay marks dormant
@@ -245,15 +243,15 @@ describe('MLA: Memory Lifecycle Accuracy', () => {
 		utimesSync(file, oldTime, oldTime);
 
 		const { decayed } = runDecay(root, 30);
-		assert.equal(decayed, 1);
-		assert.ok(existsSync(join(neuronDir, 'decay.dormant')));
+		expect(decayed).toBe(1);
+		expect(existsSync(join(neuronDir, 'decay.dormant'))).toBeTruthy();
 	});
 
 	// M-15: fire auto-grows nonexistent neuron
 	it('M-15: fire auto-grows nonexistent neuron', () => {
 		const { root } = setupTestBrain();
 		const result = fireNeuron(root, 'cortex/brand_new_rule');
-		assert.equal(result, 1);
-		assert.ok(existsSync(join(root, 'cortex/brand_new_rule', '1.neuron')));
+		expect(result).toBe(1);
+		expect(existsSync(join(root, 'cortex/brand_new_rule', '1.neuron'))).toBeTruthy();
 	});
 });

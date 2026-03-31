@@ -4,17 +4,12 @@
 
 import { renameSync } from 'node:fs';
 import { join } from 'node:path';
-import { getCurrentCounter } from './fire.js';
+import { getCurrentCounter } from './fire';
 
 /**
  * Decrement a neuron's counter by 1. Minimum counter is 1.
- *
- * @param {string} brainRoot - Absolute path to brain root
- * @param {string} neuronPath - Relative path
- * @returns {number} New counter value
- * @throws {Error} If counter is already at minimum (1) or neuron doesn't exist
  */
-export function rollbackNeuron(brainRoot, neuronPath) {
+export function rollbackNeuron(brainRoot: string, neuronPath: string): number {
 	const fullPath = join(brainRoot, neuronPath);
 	const current = getCurrentCounter(fullPath);
 

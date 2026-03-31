@@ -1,21 +1,23 @@
 {
   "name": "hebbian",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Folder-as-neuron brain for any AI agent. mkdir replaces system prompts.",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
-    "hebbian": "./bin/hebbian.js"
+    "hebbian": "./dist/bin/hebbian.js"
   },
   "files": [
-    "bin/",
-    "lib/",
+    "dist/",
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test",
-    "test:coverage": "node --test --experimental-test-coverage",
-    "lint": "biome check .",
-    "lint:fix": "biome check --fix ."
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -39,5 +41,11 @@
     "type": "git",
     "url": "https://github.com/IISweetHeartII/hebbian"
   },
-  "homepage": "https://github.com/IISweetHeartII/hebbian#readme"
+  "homepage": "https://github.com/IISweetHeartII/hebbian#readme",
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
+  }
 }

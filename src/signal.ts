@@ -7,17 +7,13 @@
 
 import { writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { SIGNAL_TYPES } from './constants.js';
+import { SIGNAL_TYPES } from './constants';
+import type { SignalType } from './constants';
 
 /**
  * Add a signal to a neuron.
- *
- * @param {string} brainRoot - Absolute path to brain root
- * @param {string} neuronPath - Relative path
- * @param {string} signalType - One of: dopamine, bomb, memory
- * @throws {Error} If signal type is invalid or neuron doesn't exist
  */
-export function signalNeuron(brainRoot, neuronPath, signalType) {
+export function signalNeuron(brainRoot: string, neuronPath: string, signalType: SignalType): void {
 	if (!SIGNAL_TYPES.includes(signalType)) {
 		throw new Error(`Invalid signal type: ${signalType}. Valid: ${SIGNAL_TYPES.join(', ')}`);
 	}
@@ -50,11 +46,8 @@ export function signalNeuron(brainRoot, neuronPath, signalType) {
 
 /**
  * Get the next signal level (current max + 1).
- * @param {string} dir
- * @param {string} prefix - "dopamine" or "memory"
- * @returns {number}
  */
-function getNextSignalLevel(dir, prefix) {
+function getNextSignalLevel(dir: string, prefix: string): number {
 	let max = 0;
 	try {
 		for (const entry of readdirSync(dir)) {

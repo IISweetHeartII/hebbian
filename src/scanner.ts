@@ -8,49 +8,14 @@
 
 import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { REGIONS, REGION_PRIORITY, MAX_DEPTH } from './constants.js';
-
-/**
- * @typedef {object} Neuron
- * @property {string} name       - Folder name (leaf)
- * @property {string} path       - Relative path from region root
- * @property {string} fullPath   - Absolute path on disk
- * @property {number} counter    - Excitatory counter (from N.neuron)
- * @property {number} contra     - Inhibitory counter (from N.contra)
- * @property {number} dopamine   - Reward counter (from dopamineN.neuron)
- * @property {number} intensity  - Net activation: counter - contra + dopamine
- * @property {number} polarity   - Net / total, range -1.0 to +1.0
- * @property {boolean} hasBomb   - bomb.neuron exists (circuit breaker)
- * @property {boolean} hasMemory - memoryN.neuron exists
- * @property {boolean} isDormant - *.dormant file exists
- * @property {number} depth      - Depth within region
- * @property {Date} modTime      - Most recent .neuron file modification time
- */
-
-/**
- * @typedef {object} Region
- * @property {string} name
- * @property {number} priority
- * @property {string} path       - Absolute path to region directory
- * @property {Neuron[]} neurons
- * @property {string[]} axons    - Cross-region connections
- * @property {boolean} hasBomb   - Any neuron in region has bomb
- */
-
-/**
- * @typedef {object} Brain
- * @property {string} root
- * @property {Region[]} regions
- */
+import { REGIONS, REGION_PRIORITY, MAX_DEPTH } from './constants';
+import type { Neuron, Region, Brain } from './types';
 
 /**
  * Scan a brain directory and return all regions with their neurons.
- * @param {string} brainRoot - Absolute path to brain root directory
- * @returns {Brain}
  */
-export function scanBrain(brainRoot) {
-	/** @type {Region[]} */
-	const regions = [];
+export function scanBrain(brainRoot: string): Brain {
+	const regions: Region[] = [];
 
 	for (const regionName of REGIONS) {
 		const regionPath = join(brainRoot, regionName);
@@ -87,17 +52,11 @@ export function scanBrain(brainRoot) {
  * Recursively walk a region directory and collect neurons.
  * A neuron is any directory that contains at least one trace file
  * (*.neuron, *.contra, *.dormant, bomb.neuron).
- *
- * @param {string} dir - Current directory to scan
- * @param {string} regionRoot - Root of the region (for relative paths)
- * @param {number} depth - Current recursion depth
- * @returns {Neuron[]}
  */
-function walkRegion(dir, regionRoot, depth) {
+function walkRegion(dir: string, regionRoot: string, depth: number): Neuron[] {
 	if (depth > MAX_DEPTH) return [];
 
-	/** @type {Neuron[]} */
-	const neurons = [];
+	const neurons: Neuron[] = [];
 	let entries;
 
 	try {
@@ -212,15 +171,13 @@ function walkRegion(dir, regionRoot, depth) {
 
 /**
  * Read .axon file from a region directory.
- * @param {string} regionPath
- * @returns {string[]}
  */
-function readAxons(regionPath) {
+function readAxons(regionPath: string): string[] {
 	const axonPath = join(regionPath, '.axon');
 	if (!existsSync(axonPath)) return [];
 	try {
 		const content = readFileSync(axonPath, 'utf8').trim();
-		return content.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+		return content.split(/[\n,]+/).map((s: string) => s.trim()).filter(Boolean);
 	} catch {
 		return [];
 	}

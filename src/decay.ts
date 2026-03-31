@@ -8,16 +8,17 @@
 
 import { readdirSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { REGIONS, MAX_DEPTH } from './constants.js';
+import { REGIONS, MAX_DEPTH } from './constants';
+
+export interface DecayResult {
+	scanned: number;
+	decayed: number;
+}
 
 /**
  * Sweep the brain and mark inactive neurons as dormant.
- *
- * @param {string} brainRoot - Absolute path to brain root
- * @param {number} days - Number of days of inactivity before dormancy
- * @returns {{ scanned: number, decayed: number }}
  */
-export function runDecay(brainRoot, days) {
+export function runDecay(brainRoot: string, days: number): DecayResult {
 	const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
 	let scanned = 0;
 	let decayed = 0;
@@ -34,13 +35,7 @@ export function runDecay(brainRoot, days) {
 	return { scanned, decayed };
 }
 
-/**
- * @param {string} dir
- * @param {number} threshold - Timestamp threshold
- * @param {number} depth
- * @returns {{ scanned: number, decayed: number }}
- */
-function decayWalk(dir, threshold, depth) {
+function decayWalk(dir: string, threshold: number, depth: number): DecayResult {
 	if (depth > MAX_DEPTH) return { scanned: 0, decayed: 0 };
 
 	let scanned = 0;

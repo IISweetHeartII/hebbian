@@ -9,10 +9,8 @@
 /**
  * Tokenize a neuron name into stemmed words.
  * Splits on underscores, hyphens, spaces, and CamelCase boundaries.
- * @param {string} name
- * @returns {string[]}
  */
-export function tokenize(name) {
+export function tokenize(name: string): string[] {
 	return name
 		.replace(/([a-z])([A-Z])/g, '$1_$2')   // camelCase → snake
 		.replace(/[_\-\s]+/g, ' ')              // normalize separators
@@ -25,10 +23,8 @@ export function tokenize(name) {
 /**
  * Simple suffix stemmer — removes common English suffixes.
  * Not a full Porter stemmer, but sufficient for Jaccard comparison.
- * @param {string} word
- * @returns {string}
  */
-export function stem(word) {
+export function stem(word: string): string {
 	const suffixes = ['ing', 'tion', 'sion', 'ness', 'ment', 'able', 'ible', 'ful', 'less', 'ous', 'ive', 'ity', 'ies', 'ed', 'er', 'es', 'ly', 'al', 'en'];
 	for (const suffix of suffixes) {
 		if (word.length > suffix.length + 2 && word.endsWith(suffix)) {
@@ -41,11 +37,8 @@ export function stem(word) {
 /**
  * Compute Jaccard similarity between two token sets.
  * |A ∩ B| / |A ∪ B|
- * @param {string[]} a
- * @param {string[]} b
- * @returns {number} 0.0 to 1.0
  */
-export function jaccardSimilarity(a, b) {
+export function jaccardSimilarity(a: string[], b: string[]): number {
 	if (a.length === 0 && b.length === 0) return 1.0;
 	if (a.length === 0 || b.length === 0) return 0.0;
 

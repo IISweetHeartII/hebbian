@@ -1,29 +1,28 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { setupTestBrain, neuron } from './fixtures/setup.js';
-import { fireNeuron, getCurrentCounter } from '../lib/fire.js';
-import { rollbackNeuron } from '../lib/rollback.js';
-import { signalNeuron } from '../lib/signal.js';
-import { growNeuron } from '../lib/grow.js';
-import { runDecay } from '../lib/decay.js';
+import { setupTestBrain, neuron } from './fixtures/setup';
+import { fireNeuron, getCurrentCounter } from '../src/fire';
+import { rollbackNeuron } from '../src/rollback';
+import { signalNeuron } from '../src/signal';
+import { growNeuron } from '../src/grow';
+import { runDecay } from '../src/decay';
 
 describe('fireNeuron', () => {
 	it('increments counter from 40 to 41', () => {
 		const { root } = setupTestBrain();
 		const result = fireNeuron(root, 'cortex/frontend/禁console_log');
-		assert.equal(result, 41);
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', '41.neuron')));
-		assert.ok(!existsSync(join(root, 'cortex/frontend/禁console_log', '40.neuron')));
+		expect(result).toBe(41);
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', '41.neuron'))).toBeTruthy();
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', '40.neuron'))).toBeFalsy();
 	});
 
 	it('auto-grows if neuron does not exist', () => {
 		const { root } = setupTestBrain();
 		const result = fireNeuron(root, 'cortex/new_rule');
-		assert.equal(result, 1);
-		assert.ok(existsSync(join(root, 'cortex/new_rule', '1.neuron')));
+		expect(result).toBe(1);
+		expect(existsSync(join(root, 'cortex/new_rule', '1.neuron'))).toBeTruthy();
 	});
 });
 
@@ -31,19 +30,19 @@ describe('rollbackNeuron', () => {
 	it('decrements counter from 40 to 39', () => {
 		const { root } = setupTestBrain();
 		const result = rollbackNeuron(root, 'cortex/frontend/禁console_log');
-		assert.equal(result, 39);
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', '39.neuron')));
+		expect(result).toBe(39);
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', '39.neuron'))).toBeTruthy();
 	});
 
 	it('throws at minimum counter (1)', () => {
 		const root = mkdtempSync(join(tmpdir(), 'hebb-rb-'));
 		neuron(root, 'cortex/test_rule', 1);
-		assert.throws(() => rollbackNeuron(root, 'cortex/test_rule'), /minimum/i);
+		expect(() => rollbackNeuron(root, 'cortex/test_rule')).toThrow(/minimum/i);
 	});
 
 	it('throws for nonexistent neuron', () => {
 		const { root } = setupTestBrain();
-		assert.throws(() => rollbackNeuron(root, 'cortex/nonexistent'), /not found/i);
+		expect(() => rollbackNeuron(root, 'cortex/nonexistent')).toThrow(/not found/i);
 	});
 });
 
@@ -51,43 +50,41 @@ describe('signalNeuron', () => {
 	it('creates bomb.neuron', () => {
 		const { root } = setupTestBrain();
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'bomb');
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', 'bomb.neuron')));
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', 'bomb.neuron'))).toBeTruthy();
 	});
 
 	it('creates dopamineN.neuron', () => {
 		const { root } = setupTestBrain();
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'dopamine');
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', 'dopamine1.neuron')));
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', 'dopamine1.neuron'))).toBeTruthy();
 	});
 
 	it('creates memoryN.neuron', () => {
 		const { root } = setupTestBrain();
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'memory');
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', 'memory1.neuron')));
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', 'memory1.neuron'))).toBeTruthy();
 	});
 
 	it('increments signal level on repeated signals', () => {
 		const { root } = setupTestBrain();
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'dopamine');
 		signalNeuron(root, 'cortex/frontend/禁console_log', 'dopamine');
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', 'dopamine1.neuron')));
-		assert.ok(existsSync(join(root, 'cortex/frontend/禁console_log', 'dopamine2.neuron')));
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', 'dopamine1.neuron'))).toBeTruthy();
+		expect(existsSync(join(root, 'cortex/frontend/禁console_log', 'dopamine2.neuron'))).toBeTruthy();
 	});
 
 	it('throws for invalid signal type', () => {
 		const { root } = setupTestBrain();
-		assert.throws(
+		expect(
 			() => signalNeuron(root, 'cortex/frontend/禁console_log', 'invalid'),
-			/invalid signal type/i,
-		);
+		).toThrow(/invalid signal type/i);
 	});
 
 	it('throws for nonexistent neuron', () => {
 		const { root } = setupTestBrain();
-		assert.throws(
+		expect(
 			() => signalNeuron(root, 'cortex/nonexistent', 'dopamine'),
-			/not found/i,
-		);
+		).toThrow(/not found/i);
 	});
 });
 
@@ -95,29 +92,29 @@ describe('growNeuron', () => {
 	it('creates folder + 1.neuron', () => {
 		const { root } = setupTestBrain();
 		const result = growNeuron(root, 'cortex/backend/禁raw_sql');
-		assert.equal(result.action, 'grew');
-		assert.equal(result.counter, 1);
-		assert.ok(existsSync(join(root, 'cortex/backend/禁raw_sql', '1.neuron')));
+		expect(result.action).toBe('grew');
+		expect(result.counter).toBe(1);
+		expect(existsSync(join(root, 'cortex/backend/禁raw_sql', '1.neuron'))).toBeTruthy();
 	});
 
 	it('fires existing neuron if already exists', () => {
 		const { root } = setupTestBrain();
 		const result = growNeuron(root, 'cortex/frontend/禁console_log');
-		assert.equal(result.action, 'fired');
-		assert.equal(result.counter, 41);
+		expect(result.action).toBe('fired');
+		expect(result.counter).toBe(41);
 	});
 
 	it('consolidates similar neurons (Jaccard >= 0.6)', () => {
 		const { root } = setupTestBrain();
 		// "data_driven_approach" vs existing "data_driven" → jaccard=0.67
 		const result = growNeuron(root, 'ego/tone/data_driven_approach');
-		assert.equal(result.action, 'fired');
-		assert.ok(result.path.includes('data_driven'));
+		expect(result.action).toBe('fired');
+		expect(result.path).toContain('data_driven');
 	});
 
 	it('throws for invalid region', () => {
 		const { root } = setupTestBrain();
-		assert.throws(() => growNeuron(root, 'invalid_region/test'), /invalid region/i);
+		expect(() => growNeuron(root, 'invalid_region/test')).toThrow(/invalid region/i);
 	});
 });
 
@@ -133,9 +130,9 @@ describe('runDecay', () => {
 		utimesSync(neuronFile, oldTime, oldTime);
 
 		const { scanned, decayed } = runDecay(root, 30);
-		assert.equal(scanned, 1);
-		assert.equal(decayed, 1);
-		assert.ok(existsSync(join(neuronDir, 'decay.dormant')));
+		expect(scanned).toBe(1);
+		expect(decayed).toBe(1);
+		expect(existsSync(join(neuronDir, 'decay.dormant'))).toBeTruthy();
 	});
 
 	it('skips already dormant neurons', () => {
@@ -149,13 +146,13 @@ describe('runDecay', () => {
 		utimesSync(neuronFile, oldTime, oldTime);
 
 		const { decayed } = runDecay(root, 30);
-		assert.equal(decayed, 0);
+		expect(decayed).toBe(0);
 	});
 
 	it('keeps recently active neurons alive', () => {
 		const { root } = setupTestBrain();
 		// All neurons were just created (mtime = now)
 		const { decayed } = runDecay(root, 30);
-		assert.equal(decayed, 0);
+		expect(decayed).toBe(0);
 	});
 });

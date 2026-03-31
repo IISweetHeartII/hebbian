@@ -1,10 +1,9 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { neuron } from './fixtures/setup.js';
-import { runDedup } from '../lib/dedup.js';
+import { neuron } from './fixtures/setup';
+import { runDedup } from '../src/dedup';
 
 describe('runDedup', () => {
 	it('merges similar neurons in same region', () => {
@@ -14,10 +13,10 @@ describe('runDedup', () => {
 		neuron(root, 'ego/tone/data_driven_approach', 3);
 
 		const { scanned, merged } = runDedup(root);
-		assert.ok(scanned >= 2);
-		assert.equal(merged, 1);
+		expect(scanned >= 2).toBeTruthy();
+		expect(merged).toBe(1);
 		// The lower-counter one should be marked dormant
-		assert.ok(existsSync(join(root, 'ego/tone/data_driven_approach', 'dedup.dormant')));
+		expect(existsSync(join(root, 'ego/tone/data_driven_approach', 'dedup.dormant'))).toBeTruthy();
 	});
 
 	it('does not merge dissimilar neurons', () => {
@@ -26,13 +25,13 @@ describe('runDedup', () => {
 		neuron(root, 'cortex/methodology/plan_then_execute', 25);
 
 		const { merged } = runDedup(root);
-		assert.equal(merged, 0);
+		expect(merged).toBe(0);
 	});
 
 	it('handles empty brain', () => {
 		const root = mkdtempSync(join(tmpdir(), 'hebb-dedup3-'));
 		const { scanned, merged } = runDedup(root);
-		assert.equal(scanned, 0);
-		assert.equal(merged, 0);
+		expect(scanned).toBe(0);
+		expect(merged).toBe(0);
 	});
 });

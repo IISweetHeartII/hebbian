@@ -1,0 +1,20 @@
+// hebbian — Public API
+
+export * from './types';
+export * from './constants';
+export { scanBrain } from './scanner';
+export { runSubsumption } from './subsumption';
+export { tokenize, stem, jaccardSimilarity } from './similarity';
+export { fireNeuron, getCurrentCounter } from './fire';
+export { rollbackNeuron } from './rollback';
+export { signalNeuron } from './signal';
+export { growNeuron } from './grow';
+export type { GrowResult } from './grow';
+export { runDecay } from './decay';
+export type { DecayResult } from './decay';
+export { runDedup } from './dedup';
+export type { DedupResult } from './dedup';
+export { gitSnapshot } from './snapshot';
+export { startWatch } from './watch';
+export { initBrain } from './init';
+export { emitBootstrap, emitIndex, emitRegionRules, emitToTarget, writeAllTiers, printDiag } from './emit';

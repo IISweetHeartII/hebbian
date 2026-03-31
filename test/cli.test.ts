@@ -1,13 +1,12 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const CLI = join(import.meta.dirname, '..', 'bin', 'hebbian.js');
+const CLI = join(import.meta.dirname, '..', 'dist', 'bin', 'hebbian.js');
 
-function run(args, opts = {}) {
+function run(args: string[], opts: Record<string, any> = {}): string {
 	return execFileSync('node', [CLI, ...args], {
 		encoding: 'utf8',
 		timeout: 10000,
@@ -18,28 +17,26 @@ function run(args, opts = {}) {
 describe('CLI', () => {
 	it('--help shows usage', () => {
 		const output = run(['--help']);
-		assert.ok(output.includes('hebbian'));
-		assert.ok(output.includes('COMMANDS'));
-		assert.ok(output.includes('init'));
-		assert.ok(output.includes('emit'));
-		assert.ok(output.includes('fire'));
-		assert.ok(output.includes('grow'));
+		expect(output).toContain('hebbian');
+		expect(output).toContain('COMMANDS');
+		expect(output).toContain('init');
+		expect(output).toContain('emit');
+		expect(output).toContain('fire');
+		expect(output).toContain('grow');
 	});
 
 	it('--version shows version', () => {
 		const output = run(['--version']);
-		assert.ok(output.includes('hebbian v'));
+		expect(output).toContain('hebbian v');
 	});
 
 	it('no command shows help', () => {
 		const output = run([]);
-		assert.ok(output.includes('COMMANDS'));
+		expect(output).toContain('COMMANDS');
 	});
 
 	it('unknown command exits with error', () => {
-		assert.throws(() => run(['nonexistent']), (err) => {
-			return err.status === 1;
-		});
+		expect(() => run(['nonexistent'])).toThrow();
 	});
 
 	it('init creates 7 region directories', () => {
@@ -49,8 +46,8 @@ describe('CLI', () => {
 
 		const regions = ['brainstem', 'limbic', 'hippocampus', 'sensors', 'cortex', 'ego', 'prefrontal'];
 		for (const r of regions) {
-			assert.ok(existsSync(join(brainDir, r)), `missing region: ${r}`);
-			assert.ok(existsSync(join(brainDir, r, '_rules.md')), `missing _rules.md in ${r}`);
+			expect(existsSync(join(brainDir, r))).toBeTruthy();
+			expect(existsSync(join(brainDir, r, '_rules.md'))).toBeTruthy();
 		}
 	});
 
@@ -60,8 +57,8 @@ describe('CLI', () => {
 		run(['init', brainDir]);
 
 		const output = run(['grow', 'cortex/backend/禁raw_sql', '--brain', brainDir]);
-		assert.ok(output.includes('grew'));
-		assert.ok(existsSync(join(brainDir, 'cortex/backend/禁raw_sql', '1.neuron')));
+		expect(output).toContain('grew');
+		expect(existsSync(join(brainDir, 'cortex/backend/禁raw_sql', '1.neuron'))).toBeTruthy();
 	});
 
 	it('fire increments counter', () => {
@@ -71,8 +68,8 @@ describe('CLI', () => {
 		run(['grow', 'cortex/test_rule', '--brain', brainDir]);
 
 		const output = run(['fire', 'cortex/test_rule', '--brain', brainDir]);
-		assert.ok(output.includes('fired'));
-		assert.ok(existsSync(join(brainDir, 'cortex/test_rule', '2.neuron')));
+		expect(output).toContain('fired');
+		expect(existsSync(join(brainDir, 'cortex/test_rule', '2.neuron'))).toBeTruthy();
 	});
 
 	it('emit claude creates CLAUDE.md', () => {
@@ -81,7 +78,7 @@ describe('CLI', () => {
 		run(['init', brainDir]);
 
 		run(['emit', 'claude', '--brain', brainDir], { cwd: dir });
-		assert.ok(existsSync(join(dir, 'CLAUDE.md')));
+		expect(existsSync(join(dir, 'CLAUDE.md'))).toBeTruthy();
 	});
 
 	it('diag shows brain diagnostics', () => {
@@ -90,8 +87,8 @@ describe('CLI', () => {
 		run(['init', brainDir]);
 
 		const output = run(['diag', '--brain', brainDir]);
-		assert.ok(output.includes('Brain Diagnostics'));
-		assert.ok(output.includes('brainstem'));
+		expect(output).toContain('Brain Diagnostics');
+		expect(output).toContain('brainstem');
 	});
 
 	it('rollback decrements counter', () => {
@@ -102,7 +99,7 @@ describe('CLI', () => {
 		run(['fire', 'cortex/test_rule', '--brain', brainDir]);
 		// Now counter=2, rollback to 1
 		const output = run(['rollback', 'cortex/test_rule', '--brain', brainDir]);
-		assert.ok(output.includes('rollback'));
+		expect(output).toContain('rollback');
 	});
 
 	it('signal adds dopamine', () => {
@@ -112,8 +109,8 @@ describe('CLI', () => {
 		run(['grow', 'cortex/test_rule', '--brain', brainDir]);
 
 		const output = run(['signal', 'dopamine', 'cortex/test_rule', '--brain', brainDir]);
-		assert.ok(output.includes('dopamine'));
-		assert.ok(existsSync(join(brainDir, 'cortex/test_rule', 'dopamine1.neuron')));
+		expect(output).toContain('dopamine');
+		expect(existsSync(join(brainDir, 'cortex/test_rule', 'dopamine1.neuron'))).toBeTruthy();
 	});
 
 	it('decay runs dormancy sweep', () => {
@@ -122,7 +119,7 @@ describe('CLI', () => {
 		run(['init', brainDir]);
 
 		const output = run(['decay', '--days', '0', '--brain', brainDir]);
-		assert.ok(output.includes('decay'));
+		expect(output).toContain('decay');
 	});
 
 	it('dedup runs batch merge', () => {
@@ -131,7 +128,7 @@ describe('CLI', () => {
 		run(['init', brainDir]);
 
 		const output = run(['dedup', '--brain', brainDir]);
-		assert.ok(output.includes('dedup'));
+		expect(output).toContain('dedup');
 	});
 
 	it('stats is alias for diag', () => {
@@ -140,7 +137,7 @@ describe('CLI', () => {
 		run(['init', brainDir]);
 
 		const output = run(['stats', '--brain', brainDir]);
-		assert.ok(output.includes('Brain Diagnostics'));
+		expect(output).toContain('Brain Diagnostics');
 	});
 
 	it('init warns when brain already exists', () => {
@@ -149,30 +146,30 @@ describe('CLI', () => {
 		run(['init', brainDir]);
 		// Second init should warn
 		const output = run(['init', brainDir]);
-		assert.ok(output.includes('already exists'));
+		expect(output).toContain('already exists');
 	});
 
 	it('missing arg for fire exits with error', () => {
-		assert.throws(() => run(['fire']), (err) => err.status === 1);
+		expect(() => run(['fire'])).toThrow();
 	});
 
 	it('missing arg for grow exits with error', () => {
-		assert.throws(() => run(['grow']), (err) => err.status === 1);
+		expect(() => run(['grow'])).toThrow();
 	});
 
 	it('missing arg for emit exits with error', () => {
-		assert.throws(() => run(['emit']), (err) => err.status === 1);
+		expect(() => run(['emit'])).toThrow();
 	});
 
 	it('missing arg for rollback exits with error', () => {
-		assert.throws(() => run(['rollback']), (err) => err.status === 1);
+		expect(() => run(['rollback'])).toThrow();
 	});
 
 	it('missing arg for signal exits with error', () => {
-		assert.throws(() => run(['signal']), (err) => err.status === 1);
+		expect(() => run(['signal'])).toThrow();
 	});
 
 	it('missing arg for init exits with error', () => {
-		assert.throws(() => run(['init']), (err) => err.status === 1);
+		expect(() => run(['init'])).toThrow();
 	});
 });

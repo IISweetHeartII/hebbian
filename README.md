@@ -1,7 +1,8 @@
 <p align="center">
+  <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript" />
   <img src="https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js" />
-  <img src="https://img.shields.io/badge/Dependencies-0-brightgreen?style=flat-square" />
-  <img src="https://img.shields.io/badge/Tests-120-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Runtime_Deps-0-brightgreen?style=flat-square" />
+  <img src="https://img.shields.io/badge/Tests-134-blue?style=flat-square" />
   <img src="https://img.shields.io/badge/MIT-green?style=flat-square" />
 </p>
 
@@ -158,22 +159,22 @@ hebbian grow cortex/frontend/禁console_logging --brain ./brain
 
 ---
 
-## Zero Dependencies
+## Zero Runtime Dependencies
 
-hebbian uses only Node.js built-in modules:
+Written in **TypeScript 6.0**, built with tsup, tested with vitest.
 
 - `node:fs` — filesystem operations
 - `node:path` — path handling
 - `node:util` — CLI argument parsing
 - `node:http` — REST API (planned)
 
-**Runtime dependencies: 0.** Matches the Go version's zero-dep philosophy, but with `npx` instant execution.
+**Runtime dependencies: 0.** Dev dependencies (typescript, tsup, vitest) are build-time only. Published package contains only compiled JS + type declarations.
 
 ---
 
 ## Governance
 
-120 tests pass in ~850ms:
+134 tests pass in ~2s:
 
 - **SCC** (Subsumption Cascade Correctness): 17/17 = **100%**
 - **MLA** (Memory Lifecycle Accuracy): 15/15 = **100%**
@@ -181,11 +182,12 @@ hebbian uses only Node.js built-in modules:
 - Lifecycle: 18 tests
 - Emit: 16 tests
 - Similarity: 12 tests
-- CLI E2E: 9 tests
+- CLI E2E: 21 tests
+- Dedup: 3 tests
 
 ```bash
-node --test                           # Run all tests
-node --test test/governance.test.js   # Governance only
+npm test                              # Run all tests
+npx vitest run test/governance.test.ts  # Governance only
 ```
 
 ---

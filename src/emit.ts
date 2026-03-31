@@ -8,18 +8,14 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { scanBrain } from './scanner.js';
-import { runSubsumption } from './subsumption.js';
+import { scanBrain } from './scanner';
+import { runSubsumption } from './subsumption';
 import {
 	REGIONS, REGION_ICONS, REGION_KO, EMIT_TARGETS,
 	EMIT_THRESHOLD, SPOTLIGHT_DAYS, MARKER_START, MARKER_END,
-} from './constants.js';
-
-/**
- * @typedef {import('./scanner.js').Neuron} Neuron
- * @typedef {import('./scanner.js').Region} Region
- * @typedef {import('./subsumption.js').SubsumptionResult} SubsumptionResult
- */
+} from './constants';
+import type { RegionName } from './constants';
+import type { Neuron, Region, Brain, SubsumptionResult } from './types';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TIER 1: Bootstrap (~500 tokens)
@@ -27,12 +23,9 @@ import {
 
 /**
  * Generate Tier 1 bootstrap content.
- * @param {SubsumptionResult} result
- * @param {import('./scanner.js').Brain} brain
- * @returns {string}
  */
-export function emitBootstrap(result, brain) {
-	const lines = [];
+export function emitBootstrap(result: SubsumptionResult, brain: Brain): string {
+	const lines: string[] = [];
 	const now = new Date().toISOString().replace(/\.\d+Z$/, '');
 
 	lines.push(MARKER_START);
@@ -95,7 +88,7 @@ export function emitBootstrap(result, brain) {
 	for (const region of result.activeRegions) {
 		const active = region.neurons.filter((n) => !n.isDormant);
 		const activation = active.reduce((sum, n) => sum + n.counter, 0);
-		const icon = REGION_ICONS[region.name] || '';
+		const icon = REGION_ICONS[region.name as RegionName] || '';
 		lines.push(`| ${icon} ${region.name} | ${active.length} | ${activation} |`);
 	}
 	lines.push('');
@@ -110,12 +103,9 @@ export function emitBootstrap(result, brain) {
 
 /**
  * Generate Tier 2 brain index content.
- * @param {SubsumptionResult} result
- * @param {import('./scanner.js').Brain} brain
- * @returns {string}
  */
-export function emitIndex(result, brain) {
-	const lines = [];
+export function emitIndex(result: SubsumptionResult, brain: Brain): string {
+	const lines: string[] = [];
 	lines.push('# hebbian Brain Index');
 	lines.push('');
 	lines.push(`> ${result.firedNeurons} active / ${result.totalNeurons} total neurons | activation: ${result.totalCounter}`);
@@ -163,7 +153,7 @@ export function emitIndex(result, brain) {
 		const active = region.neurons.filter((n) => !n.isDormant);
 		const dormant = region.neurons.filter((n) => n.isDormant);
 		const activation = active.reduce((sum, n) => sum + n.counter, 0);
-		const icon = REGION_ICONS[region.name] || '';
+		const icon = REGION_ICONS[region.name as RegionName] || '';
 		lines.push(`| ${icon} ${region.name} | ${active.length} | ${dormant.length} | ${activation} | [_rules.md](${region.name}/_rules.md) |`);
 	}
 	lines.push('');
@@ -177,17 +167,15 @@ export function emitIndex(result, brain) {
 
 /**
  * Generate Tier 3 per-region rules content.
- * @param {Region} region
- * @returns {string}
  */
-export function emitRegionRules(region) {
-	const icon = REGION_ICONS[region.name] || '';
-	const ko = REGION_KO[region.name] || '';
+export function emitRegionRules(region: Region): string {
+	const icon = REGION_ICONS[region.name as RegionName] || '';
+	const ko = REGION_KO[region.name as RegionName] || '';
 	const active = region.neurons.filter((n) => !n.isDormant);
 	const dormant = region.neurons.filter((n) => n.isDormant);
 	const activation = active.reduce((sum, n) => sum + n.counter, 0);
 
-	const lines = [];
+	const lines: string[] = [];
 	lines.push(`# ${icon} ${region.name} (${ko})`);
 	lines.push(`> Active: ${active.length} | Dormant: ${dormant.length} | Activation: ${activation}`);
 	lines.push('');
@@ -208,7 +196,7 @@ export function emitRegionRules(region) {
 		for (const n of sorted) {
 			const indent = '  '.repeat(Math.min(n.depth, 4));
 			const prefix = strengthPrefix(n.counter);
-			const signals = [];
+			const signals: string[] = [];
 			if (n.dopamine > 0) signals.push(`\u{1F7E2}+${n.dopamine}`);
 			if (n.hasBomb) signals.push('\u{1F4A3}');
 			if (n.hasMemory) signals.push('\u{1F4BE}');
@@ -236,10 +224,8 @@ export function emitRegionRules(region) {
 
 /**
  * Emit rules to a specific target or all targets.
- * @param {string} brainRoot
- * @param {string} target - Target name or "all"
  */
-export function emitToTarget(brainRoot, target) {
+export function emitToTarget(brainRoot: string, target: string): void {
 	const brain = scanBrain(brainRoot);
 	const result = runSubsumption(brain);
 	const content = emitBootstrap(result, brain);
@@ -262,11 +248,8 @@ export function emitToTarget(brainRoot, target) {
 
 /**
  * Write all 3 tiers into the brain directory.
- * @param {string} brainRoot
- * @param {SubsumptionResult} result
- * @param {import('./scanner.js').Brain} brain
  */
-export function writeAllTiers(brainRoot, result, brain) {
+export function writeAllTiers(brainRoot: string, result: SubsumptionResult, brain: Brain): void {
 	// Tier 2: _index.md
 	const indexContent = emitIndex(result, brain);
 	writeFileSync(join(brainRoot, '_index.md'), indexContent, 'utf8');
@@ -282,10 +265,8 @@ export function writeAllTiers(brainRoot, result, brain) {
 
 /**
  * Write content to a target file, using marker-based injection if file already exists.
- * @param {string} filePath
- * @param {string} content
  */
-function writeTarget(filePath, content) {
+function writeTarget(filePath: string, content: string): void {
 	const dir = dirname(filePath);
 	if (dir !== '.' && !existsSync(dir)) {
 		mkdirSync(dir, { recursive: true });
@@ -314,10 +295,8 @@ function writeTarget(filePath, content) {
 
 /**
  * Print brain diagnostics to stdout.
- * @param {import('./scanner.js').Brain} brain
- * @param {SubsumptionResult} result
  */
-export function printDiag(brain, result) {
+export function printDiag(brain: Brain, result: SubsumptionResult): void {
 	console.log('');
 	console.log(`\u{1F9E0} hebbian Brain Diagnostics`);
 	console.log(`   Root: ${brain.root}`);
@@ -329,7 +308,7 @@ export function printDiag(brain, result) {
 	console.log('');
 
 	for (const region of brain.regions) {
-		const icon = REGION_ICONS[region.name] || '';
+		const icon = REGION_ICONS[region.name as RegionName] || '';
 		const active = region.neurons.filter((n) => !n.isDormant);
 		const dormant = region.neurons.filter((n) => n.isDormant);
 		const activation = active.reduce((sum, n) => sum + n.counter, 0);
@@ -356,12 +335,12 @@ export function printDiag(brain, result) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /** Convert a neuron relative path to a human-readable sentence. */
-function pathToSentence(path) {
+function pathToSentence(path: string): string {
 	return path.replace(/\//g, ' > ').replace(/_/g, ' ');
 }
 
 /** Sort non-dormant neurons by counter (descending), take first N. */
-function sortedActive(neurons, n) {
+function sortedActive(neurons: Neuron[], n: number): Neuron[] {
 	return [...neurons]
 		.filter((neuron) => !neuron.isDormant)
 		.sort((a, b) => b.counter - a.counter)
@@ -369,7 +348,7 @@ function sortedActive(neurons, n) {
 }
 
 /** Strength prefix based on counter value. */
-function strengthPrefix(counter) {
+function strengthPrefix(counter: number): string {
 	if (counter >= 10) return '**[절대]** ';
 	if (counter >= 5) return '**[반드시]** ';
 	return '';

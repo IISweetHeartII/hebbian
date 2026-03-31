@@ -9,10 +9,8 @@ import { join } from 'node:path';
 
 /**
  * Create a git snapshot of the brain directory.
- * @param {string} brainRoot
- * @returns {boolean} Whether a commit was created
  */
-export function gitSnapshot(brainRoot) {
+export function gitSnapshot(brainRoot: string): boolean {
 	// Check if brain is inside a git repo
 	if (!existsSync(join(brainRoot, '.git'))) {
 		// Try parent directories
@@ -39,8 +37,9 @@ export function gitSnapshot(brainRoot) {
 
 		console.log(`\u{1F4F8} snapshot: committed brain state at ${ts}`);
 		return true;
-	} catch (err) {
-		console.error(`\u{274C} snapshot failed: ${err.message}`);
+	} catch (err: unknown) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(`\u{274C} snapshot failed: ${message}`);
 		return false;
 	}
 }

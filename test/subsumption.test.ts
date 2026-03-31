@@ -1,8 +1,7 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
-import { setupTestBrain, plantBomb, removeBomb, markDormant } from './fixtures/setup.js';
-import { scanBrain } from '../lib/scanner.js';
-import { runSubsumption } from '../lib/subsumption.js';
+import { describe, it, expect } from 'vitest';
+import { setupTestBrain, plantBomb, removeBomb, markDormant } from './fixtures/setup';
+import { scanBrain } from '../src/scanner';
+import { runSubsumption } from '../src/subsumption';
 
 describe('runSubsumption', () => {
 	it('all regions active when no bomb', () => {
@@ -10,9 +9,9 @@ describe('runSubsumption', () => {
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 
-		assert.equal(result.activeRegions.length, 7);
-		assert.equal(result.blockedRegions.length, 0);
-		assert.equal(result.bombSource, '');
+		expect(result.activeRegions.length).toBe(7);
+		expect(result.blockedRegions.length).toBe(0);
+		expect(result.bombSource).toBe('');
 	});
 
 	it('P0 (brainstem) bomb blocks ALL regions', () => {
@@ -21,9 +20,9 @@ describe('runSubsumption', () => {
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 
-		assert.equal(result.bombSource, 'brainstem');
-		assert.equal(result.activeRegions.length, 0);
-		assert.equal(result.blockedRegions.length, 7);
+		expect(result.bombSource).toBe('brainstem');
+		expect(result.activeRegions.length).toBe(0);
+		expect(result.blockedRegions.length).toBe(7);
 	});
 
 	it('P1 (limbic) bomb → only brainstem active', () => {
@@ -32,10 +31,10 @@ describe('runSubsumption', () => {
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 
-		assert.equal(result.bombSource, 'limbic');
-		assert.equal(result.activeRegions.length, 1);
-		assert.equal(result.activeRegions[0].name, 'brainstem');
-		assert.equal(result.blockedRegions.length, 6);
+		expect(result.bombSource).toBe('limbic');
+		expect(result.activeRegions.length).toBe(1);
+		expect(result.activeRegions[0].name).toBe('brainstem');
+		expect(result.blockedRegions.length).toBe(6);
 	});
 
 	it('P3 (sensors) bomb → P0-P2 active, P3-P6 blocked', () => {
@@ -44,11 +43,11 @@ describe('runSubsumption', () => {
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 
-		assert.equal(result.bombSource, 'sensors');
-		assert.equal(result.activeRegions.length, 3);
-		const activeNames = result.activeRegions.map((r) => r.name);
-		assert.deepEqual(activeNames, ['brainstem', 'limbic', 'hippocampus']);
-		assert.equal(result.blockedRegions.length, 4);
+		expect(result.bombSource).toBe('sensors');
+		expect(result.activeRegions.length).toBe(3);
+		const activeNames = result.activeRegions.map((r: any) => r.name);
+		expect(activeNames).toEqual(['brainstem', 'limbic', 'hippocampus']);
+		expect(result.blockedRegions.length).toBe(4);
 	});
 
 	it('P4 (cortex) bomb → P0-P3 active', () => {
@@ -57,10 +56,10 @@ describe('runSubsumption', () => {
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 
-		assert.equal(result.bombSource, 'cortex');
-		assert.equal(result.activeRegions.length, 4);
-		const activeNames = result.activeRegions.map((r) => r.name);
-		assert.deepEqual(activeNames, ['brainstem', 'limbic', 'hippocampus', 'sensors']);
+		expect(result.bombSource).toBe('cortex');
+		expect(result.activeRegions.length).toBe(4);
+		const activeNames = result.activeRegions.map((r: any) => r.name);
+		expect(activeNames).toEqual(['brainstem', 'limbic', 'hippocampus', 'sensors']);
 	});
 
 	it('P5 (ego) bomb → P0-P4 active', () => {
@@ -69,8 +68,8 @@ describe('runSubsumption', () => {
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 
-		assert.equal(result.bombSource, 'ego');
-		assert.equal(result.activeRegions.length, 5);
+		expect(result.bombSource).toBe('ego');
+		expect(result.activeRegions.length).toBe(5);
 	});
 
 	it('P6 (prefrontal) bomb → P0-P5 active', () => {
@@ -79,8 +78,8 @@ describe('runSubsumption', () => {
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 
-		assert.equal(result.bombSource, 'prefrontal');
-		assert.equal(result.activeRegions.length, 6);
+		expect(result.bombSource).toBe('prefrontal');
+		expect(result.activeRegions.length).toBe(6);
 	});
 
 	it('counts firedNeurons (non-dormant only)', () => {
@@ -89,8 +88,8 @@ describe('runSubsumption', () => {
 		const result = runSubsumption(brain);
 
 		// 15 total neurons, all non-dormant
-		assert.equal(result.firedNeurons, 15);
-		assert.equal(result.totalNeurons, 15);
+		expect(result.firedNeurons).toBe(15);
+		expect(result.totalNeurons).toBe(15);
 	});
 
 	it('excludes dormant neurons from firedNeurons and totalCounter', () => {
@@ -99,8 +98,8 @@ describe('runSubsumption', () => {
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 
-		assert.equal(result.firedNeurons, 14); // 15 - 1 dormant
-		assert.equal(result.totalNeurons, 15); // total count unchanged
+		expect(result.firedNeurons).toBe(14); // 15 - 1 dormant
+		expect(result.totalNeurons).toBe(15); // total count unchanged
 	});
 
 	it('sums totalCounter from active non-dormant neurons', () => {
@@ -109,7 +108,7 @@ describe('runSubsumption', () => {
 		const result = runSubsumption(brain);
 
 		// Sum all counters: 103+100+100+50+30+20+15+10+5+40+25+60+45+10+8 = 621
-		assert.equal(result.totalCounter, 621);
+		expect(result.totalCounter).toBe(621);
 	});
 
 	it('bomb removed → full recovery', () => {
@@ -119,15 +118,15 @@ describe('runSubsumption', () => {
 		// Verify bomb blocks
 		let brain = scanBrain(root);
 		let result = runSubsumption(brain);
-		assert.equal(result.bombSource, 'brainstem');
-		assert.equal(result.activeRegions.length, 0);
+		expect(result.bombSource).toBe('brainstem');
+		expect(result.activeRegions.length).toBe(0);
 
 		// Remove bomb
 		removeBomb(root, 'brainstem/禁fallback');
 		brain = scanBrain(root);
 		result = runSubsumption(brain);
-		assert.equal(result.bombSource, '');
-		assert.equal(result.activeRegions.length, 7);
+		expect(result.bombSource).toBe('');
+		expect(result.activeRegions.length).toBe(7);
 	});
 
 	it('identifies correct bombSource', () => {
@@ -135,6 +134,6 @@ describe('runSubsumption', () => {
 		plantBomb(root, 'hippocampus/error_patterns');
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
-		assert.equal(result.bombSource, 'hippocampus');
+		expect(result.bombSource).toBe('hippocampus');
 	});
 });

@@ -5,10 +5,15 @@
 
 import { mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { REGIONS, REGION_ICONS, REGION_KO } from './constants.js';
+import { REGIONS, REGION_ICONS, REGION_KO } from './constants';
+import type { RegionName } from './constants';
 
-/** @type {Record<string, { description: string, starters: string[] }>} */
-const REGION_TEMPLATES = {
+interface RegionTemplate {
+	description: string;
+	starters: string[];
+}
+
+const REGION_TEMPLATES: Record<RegionName, RegionTemplate> = {
 	brainstem: {
 		description: 'Absolute principles. Immutable. Read-only conscience.\nP0 — highest priority. bomb here halts EVERYTHING.',
 		starters: ['禁fallback', '推execute_not_debate'],
@@ -41,12 +46,11 @@ const REGION_TEMPLATES = {
 
 /**
  * Initialize a new brain directory with 7 regions.
- * @param {string} brainPath - Absolute path to create the brain at
  */
-export function initBrain(brainPath) {
+export function initBrain(brainPath: string): void {
 	if (existsSync(brainPath)) {
 		const entries = readdirSync(brainPath);
-		if (entries.some((e) => REGIONS.includes(e))) {
+		if (entries.some((e) => (REGIONS as readonly string[]).includes(e))) {
 			console.log(`\u{26A0}\uFE0F  Brain already exists at ${brainPath}`);
 			return;
 		}
