@@ -129,6 +129,12 @@ async function main(argv: string[]): Promise<void> {
 			}
 			const { emitToTarget } = await import('./emit');
 			await emitToTarget(brainRoot, target);
+			// Non-blocking update check — show banner if upgrade available
+			const { checkForUpdates, formatUpdateBanner } = await import('./update-check');
+			checkForUpdates(VERSION).then((status) => {
+				const banner = formatUpdateBanner(status);
+				if (banner) console.error(banner);
+			}).catch(() => {});
 			break;
 		}
 		case 'fire': {
@@ -221,9 +227,15 @@ async function main(argv: string[]): Promise<void> {
 				case 'uninstall':
 					uninstallHooks();
 					break;
-				case 'status':
+				case 'status': {
 					checkHooks();
+					console.log(`   version: v${VERSION}`);
+					const { checkForUpdates: checkUpdates, formatUpdateBanner: formatBanner } = await import('./update-check');
+					const updateStatus = await checkUpdates(VERSION);
+					const updateBanner = formatBanner(updateStatus);
+					if (updateBanner) console.error(updateBanner);
 					break;
+				}
 				default:
 					console.error('Usage: hebbian claude <install|uninstall|status>');
 					process.exit(1);
