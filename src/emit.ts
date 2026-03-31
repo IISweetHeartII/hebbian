@@ -273,17 +273,21 @@ function writeTarget(filePath: string, content: string): void {
 	}
 
 	if (existsSync(filePath)) {
-		// Marker-based injection: replace between markers, preserve surrounding content
 		const existing = readFileSync(filePath, 'utf8');
 		const startIdx = existing.indexOf(MARKER_START);
 		const endIdx = existing.indexOf(MARKER_END);
 
 		if (startIdx !== -1 && endIdx !== -1) {
+			// Replace between markers, preserve surrounding content
 			const before = existing.slice(0, startIdx);
 			const after = existing.slice(endIdx + MARKER_END.length);
 			writeFileSync(filePath, before + content + after, 'utf8');
 			return;
 		}
+
+		// No markers yet — prepend brain block, preserve existing content
+		writeFileSync(filePath, content + '\n\n' + existing, 'utf8');
+		return;
 	}
 
 	writeFileSync(filePath, content, 'utf8');

@@ -7,6 +7,7 @@
 // Stop hook: digests conversation transcript for corrections
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { HOOK_MARKER, REGIONS } from './constants';
 import { initBrain } from './init';
@@ -52,6 +53,15 @@ export function installHooks(brainRoot: string, projectRoot?: string): void {
 	const defaultBrain = resolve(root, 'brain');
 	const brainFlag = resolvedBrain === defaultBrain ? '' : ` --brain ${resolvedBrain}`;
 
+	// Resolve stable npx path via `which` (returns symlink like /opt/homebrew/bin/npx,
+	// not versioned Cellar path — survives node upgrades)
+	let npxBin = 'npx';
+	try {
+		npxBin = execSync('which npx', { encoding: 'utf8' }).trim();
+	} catch {
+		// Fall back to bare npx — will work if PATH is set
+	}
+
 	// Read existing settings or start fresh
 	let settings: Record<string, unknown> = {};
 	if (existsSync(settingsPath)) {
@@ -75,7 +85,7 @@ export function installHooks(brainRoot: string, projectRoot?: string): void {
 			matcher: 'startup|resume',
 			entry: {
 				type: 'command',
-				command: `hebbian emit claude${brainFlag}`,
+				command: `${npxBin} hebbian emit claude${brainFlag}`,
 				timeout: 10,
 				statusMessage: `${HOOK_MARKER} refreshing brain`,
 			},
@@ -84,7 +94,7 @@ export function installHooks(brainRoot: string, projectRoot?: string): void {
 			event: 'Stop',
 			entry: {
 				type: 'command',
-				command: `hebbian digest${brainFlag}`,
+				command: `${npxBin} hebbian digest${brainFlag}`,
 				timeout: 30,
 				statusMessage: `${HOOK_MARKER} digesting session`,
 			},
@@ -123,8 +133,8 @@ export function installHooks(brainRoot: string, projectRoot?: string): void {
 	writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
 
 	console.log(`\u2705 hebbian hooks installed at ${settingsPath}`);
-	console.log(`   SessionStart \u2192 hebbian emit claude${brainFlag}`);
-	console.log(`   Stop \u2192 hebbian digest${brainFlag}`);
+	console.log(`   SessionStart \u2192 ${npxBin} hebbian emit claude${brainFlag}`);
+	console.log(`   Stop \u2192 ${npxBin} hebbian digest${brainFlag}`);
 }
 
 /**

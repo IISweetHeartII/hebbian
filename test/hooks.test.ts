@@ -60,7 +60,7 @@ describe('hooks', () => {
 			const settings = readSettings(dir);
 			const hooks = settings.hooks as Record<string, Array<{ hooks: Array<{ command: string }> }>>;
 			const emitCmd = hooks.SessionStart![0]!.hooks[0]!.command;
-			expect(emitCmd).toBe('hebbian emit claude');
+			expect(emitCmd).toMatch(/npx hebbian emit claude$/);
 			expect(emitCmd).not.toContain('--brain');
 		});
 
