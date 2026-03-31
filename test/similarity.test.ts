@@ -24,6 +24,25 @@ describe('tokenize', () => {
 		const tokens = tokenize('禁console_log');
 		expect(tokens).toContain('禁console');
 	});
+
+	it('splits on periods (console.log → two tokens)', () => {
+		const tokens = tokenize('console.log');
+		expect(tokens).toContain('console');
+		expect(tokens).toContain('log');
+		expect(tokens).not.toContain('console.log');
+	});
+
+	it('strips commas', () => {
+		const tokens = tokenize('debugging,structured');
+		expect(tokens).toContain('debugg');  // stemmed
+		expect(tokens).toContain('structur');  // stemmed
+	});
+
+	it('strips apostrophes', () => {
+		const tokens = tokenize("don't");
+		expect(tokens).toContain('don');
+		expect(tokens).not.toContain("don't");
+	});
 });
 
 describe('stem', () => {

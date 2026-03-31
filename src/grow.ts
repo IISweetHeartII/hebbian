@@ -40,12 +40,16 @@ export function growNeuron(brainRoot: string, neuronPath: string): GrowResult {
 	}
 
 	const leafName = parts[parts.length - 1]!;
-	const newTokens = tokenize(leafName);
+	// Strip correction prefix for Jaccard comparison so NO_console_log
+	// consolidates with DO_console_log (unless prefix differs on short names)
+	const newPrefix = leafName.match(/^(NO|DO|MUST|WARN)_/)?.[1] || '';
+	const newStripped = leafName.replace(/^(NO|DO|MUST|WARN)_/, '');
+	const newTokens = tokenize(newStripped);
 
 	// Search for similar neurons in the same region
 	const regionPath = join(brainRoot, regionName);
 	if (existsSync(regionPath)) {
-		const match = findSimilar(regionPath, regionPath, newTokens);
+		const match = findSimilar(regionPath, regionPath, newTokens, newPrefix);
 		if (match) {
 			const matchRelPath = regionName + '/' + relative(regionPath, match);
 			console.log(`\u{1F504} consolidation: "${neuronPath}" ≈ "${matchRelPath}" (firing existing)`);
@@ -63,8 +67,10 @@ export function growNeuron(brainRoot: string, neuronPath: string): GrowResult {
 
 /**
  * Walk a region and find a neuron whose name is similar to the given tokens.
+ * Strips correction prefixes (NO_/DO_/MUST_/WARN_) before comparison.
+ * Guard: if prefixes differ and tokens <= 2, skip (prevents NO_log merging with MUST_log).
  */
-function findSimilar(dir: string, regionRoot: string, targetTokens: string[]): string | null {
+function findSimilar(dir: string, regionRoot: string, targetTokens: string[], targetPrefix: string): string | null {
 	let entries;
 	try {
 		entries = readdirSync(dir, { withFileTypes: true });
@@ -76,9 +82,15 @@ function findSimilar(dir: string, regionRoot: string, targetTokens: string[]): s
 	const hasNeuron = entries.some((e) => e.isFile() && e.name.endsWith('.neuron'));
 	if (hasNeuron) {
 		const folderName = dir.split('/').pop() || '';
-		const existingTokens = tokenize(folderName);
+		const existingPrefix = folderName.match(/^(NO|DO|MUST|WARN)_/)?.[1] || '';
+		const existingStripped = folderName.replace(/^(NO|DO|MUST|WARN)_/, '');
+		const existingTokens = tokenize(existingStripped);
 		const similarity = jaccardSimilarity(targetTokens, existingTokens);
-		if (similarity >= JACCARD_THRESHOLD) {
+
+		// Guard: different prefixes with short names = semantically different rules
+		if (targetPrefix !== existingPrefix && targetTokens.length <= 2) {
+			// Skip: "NO_log" and "MUST_log" should NOT consolidate
+		} else if (similarity >= JACCARD_THRESHOLD) {
 			return dir;
 		}
 	}
@@ -87,7 +99,7 @@ function findSimilar(dir: string, regionRoot: string, targetTokens: string[]): s
 	for (const entry of entries) {
 		if (entry.name.startsWith('_') || entry.name.startsWith('.')) continue;
 		if (entry.isDirectory()) {
-			const match = findSimilar(join(dir, entry.name), regionRoot, targetTokens);
+			const match = findSimilar(join(dir, entry.name), regionRoot, targetTokens, targetPrefix);
 			if (match) return match;
 		}
 	}

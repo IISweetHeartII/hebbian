@@ -69,10 +69,11 @@ The brain that evolves. LLM-powered evolution, candidate staging, and the "whoa"
 Current digest creates ugly neuron names (`NO_don't_console.log_debugging,_structur`).
 Clean up keyword extraction to produce `NO_console_log` style names.
 
-- [ ] Stop-word removal (don't, the, a, is, etc.)
-- [ ] Snake_case normalization
-- [ ] Max 3-4 keyword tokens per name
-- [ ] Prefix preservation (NO_, DO_, MUST_, WARN_)
+- [x] Stop-word removal (expanded set + correction-specific words)
+- [x] Snake_case normalization (punctuation stripping, unstemmed tokens)
+- [x] Max 3 keyword tokens per name
+- [x] Prefix support (NO_, DO_, MUST_, WARN_) with priority ordering
+- [x] Jaccard prefix-aware consolidation (strip prefix before comparison)
 
 ### 4.1 Evolve Engine (`src/evolve.ts`)
 

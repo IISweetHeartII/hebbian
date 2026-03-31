@@ -1,5 +1,18 @@
 # TODOS
 
+## Digest false positive reduction
+
+Current correction detection fires on loose markers like "instead", "avoid", "않" (Korean)
+in normal conversation. Long informational messages get incorrectly flagged as corrections.
+
+**What it would do:** Add minimum confidence scoring — require 2+ correction markers
+in the same message, or minimum keyword density relative to message length.
+
+**Priority:** Medium. Candidate staging (Phase 4.2) is the safety net, but it doesn't
+exist yet. Until then, false positives create noise neurons.
+**Depends on:** Nothing (independent improvement)
+**Source:** Codex outside voice finding during eng review (2026-04-01)
+
 ## Mid-session re-emit hook
 
 CLAUDE.md goes stale mid-session if the brain changes (via `grow`, `fire`, `inbox`).

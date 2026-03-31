@@ -12,7 +12,8 @@ import { join, basename } from 'node:path';
 import { MAX_CORRECTIONS_PER_SESSION, MIN_CORRECTION_LENGTH, DIGEST_LOG_DIR } from './constants';
 import { growNeuron } from './grow';
 import { logEpisode } from './episode';
-import { tokenize } from './similarity';
+// tokenize() not used here — digest uses its own unstemmed split for readable names.
+// tokenize() with stemming is for Jaccard similarity in grow.ts.
 
 export interface DigestResult {
 	corrections: number;
@@ -24,7 +25,7 @@ export interface DigestResult {
 export interface ExtractedCorrection {
 	text: string;
 	path: string;
-	prefix: 'NO' | 'DO';
+	prefix: 'NO' | 'DO' | 'MUST' | 'WARN';
 	keywords: string[];
 }
 
@@ -59,12 +60,27 @@ const NEGATION_PATTERNS = [
 // Affirmation patterns — user is telling the AI TO do something
 const AFFIRMATION_PATTERNS = [
 	/\balways\b/i,
-	/\bmust\b/i,
 	/\bshould\s+always\b/i,
 	/\buse\s+\w+\s+instead\b/i,
 	// Korean affirmation
 	/항상/,
+];
+
+// Must patterns — strong imperative ("you must X", "X is required")
+const MUST_PATTERNS = [
+	/\bmust\b/i,
+	/\brequired\b/i,
+	// Korean
 	/반드시/,
+];
+
+// Warn patterns — cautionary ("be careful with X", "watch out for X")
+const WARN_PATTERNS = [
+	/\bcareful\b/i,
+	/\bwatch\s+out\b/i,
+	/\bwarning\b/i,
+	// Korean
+	/주의/,
 ];
 
 /**
@@ -218,20 +234,28 @@ export function extractCorrections(messages: string[]): ExtractedCorrection[] {
 
 /**
  * Detect if a message is a correction and extract structured data.
+ * Priority: NO > MUST > WARN > DO
  */
 function detectCorrection(text: string): ExtractedCorrection | null {
 	const isNegation = NEGATION_PATTERNS.some((p) => p.test(text));
+	const isMust = MUST_PATTERNS.some((p) => p.test(text));
+	const isWarn = WARN_PATTERNS.some((p) => p.test(text));
 	const isAffirmation = AFFIRMATION_PATTERNS.some((p) => p.test(text));
 
-	if (!isNegation && !isAffirmation) return null;
+	if (!isNegation && !isMust && !isWarn && !isAffirmation) return null;
 
-	const prefix = isNegation ? 'NO' : 'DO';
+	let prefix: 'NO' | 'MUST' | 'WARN' | 'DO';
+	if (isNegation) prefix = 'NO';
+	else if (isMust) prefix = 'MUST';
+	else if (isWarn) prefix = 'WARN';
+	else prefix = 'DO';
+
 	const keywords = extractKeywords(text);
 
 	if (keywords.length === 0) return null;
 
-	// Build neuron path: cortex/{PREFIX}_{keyword1}_{keyword2}
-	const pathSegment = `${prefix}_${keywords.slice(0, 4).join('_')}`;
+	// Build neuron path: cortex/{PREFIX}_{keyword1}_{keyword2}_{keyword3}
+	const pathSegment = `${prefix}_${keywords.slice(0, 3).join('_')}`;
 	const path = `cortex/${pathSegment}`;
 
 	return { text, path, prefix, keywords };
@@ -239,10 +263,13 @@ function detectCorrection(text: string): ExtractedCorrection | null {
 
 /**
  * Extract meaningful keywords from correction text.
- * Filters out common stop words and correction-specific words.
+ * Uses its own tokenization WITHOUT stemming for readable neuron names.
+ * (tokenize() in similarity.ts stems words, which is good for Jaccard
+ * matching but produces ugly names like "consol" instead of "console".)
  */
 function extractKeywords(text: string): string[] {
 	const STOP_WORDS = new Set([
+		// English stop words
 		'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
 		'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
 		'should', 'may', 'might', 'shall', 'can', 'need', 'dare', 'ought',
@@ -252,15 +279,22 @@ function extractKeywords(text: string): string[] {
 		'neither', 'each', 'every', 'all', 'any', 'few', 'more', 'most',
 		'other', 'some', 'such', 'no', 'only', 'own', 'same', 'than',
 		'too', 'very', 'just', 'because', 'until', 'while', 'that', 'this',
-		'these', 'those', 'it', 'its', 'i', 'me', 'my', 'we', 'us', 'you',
+		'these', 'those', 'it', 'its', 'me', 'my', 'we', 'us', 'you',
 		'your', 'he', 'she', 'they', 'them', 'what', 'which', 'who', 'whom',
 		// Correction-specific stop words
 		'don', 'dont', 'stop', 'never', 'always', 'instead', 'use', 'avoid',
-		'please', 'must', 'should', 'like', 'want', 'think',
+		'please', 'must', 'should', 'like', 'want', 'think', 'way', 'make',
+		'sure', 'keep', 'try', 'let', 'get', 'put', 'set', 'new', 'also',
+		'using', 'used', 'when', 'where', 'how', 'why', 'here', 'there',
+		'careful', 'warning', 'watch', 'out', 'required',
 	]);
 
-	const tokens = tokenize(text);
-	return tokens.filter((t) => !STOP_WORDS.has(t) && t.length > 2);
+	return text
+		.replace(/([a-z])([A-Z])/g, '$1 $2')                                    // camelCase → words
+		.replace(/[^a-zA-Z0-9\u3000-\u9FFF\uAC00-\uD7AF]+/g, ' ')              // punctuation → space
+		.toLowerCase()
+		.split(/\s+/)
+		.filter((t) => t.length > 2 && !STOP_WORDS.has(t));
 }
 
 /**

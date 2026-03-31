@@ -184,11 +184,12 @@ describe('extractCorrections', () => {
 		expect(corrections[0]!.path).toMatch(/^cortex\/NO_/);
 	});
 
-	it('generates DO_ prefix for affirmation corrections', () => {
+	it('generates MUST_ prefix for "must" corrections (priority over DO)', () => {
 		const corrections = extractCorrections([
 			'you must always validate user input before processing',
 		]);
-		expect(corrections[0]!.path).toMatch(/^cortex\/DO_/);
+		expect(corrections[0]!.prefix).toBe('MUST');
+		expect(corrections[0]!.path).toMatch(/^cortex\/MUST_/);
 	});
 
 	it('extracts meaningful keywords from correction text', () => {
@@ -199,6 +200,149 @@ describe('extractCorrections', () => {
 		// Should not contain stop words
 		expect(corrections[0]!.keywords).not.toContain('the');
 		expect(corrections[0]!.keywords).not.toContain('for');
+	});
+
+	// --- REGRESSION TESTS (Phase 4.0) ---
+
+	it('REGRESSION: "don\'t use console.log" produces clean name', () => {
+		const corrections = extractCorrections([
+			"don't use console.log for debugging, always use the structured logger utility instead",
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.path).toBe('cortex/NO_console_log_debugging');
+	});
+
+	it('REGRESSION: "never commit API keys" produces clean name', () => {
+		const corrections = extractCorrections([
+			'never commit API keys or secrets to the repository',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.path).toBe('cortex/NO_commit_api_keys');
+	});
+
+	// --- PUNCTUATION STRIPPING ---
+
+	it('strips periods from keywords (console.log → console, log)', () => {
+		const corrections = extractCorrections([
+			"don't use console.log anywhere in production",
+		]);
+		expect(corrections[0]!.keywords).toContain('console');
+		expect(corrections[0]!.keywords).toContain('log');
+		expect(corrections[0]!.keywords).not.toContain('console.log');
+	});
+
+	it('strips commas from keywords', () => {
+		const corrections = extractCorrections([
+			"don't use var, let, or eval in the codebase",
+		]);
+		// "var" is 3 chars, passes length filter
+		expect(corrections[0]!.keywords).toContain('var');
+		expect(corrections[0]!.keywords).not.toContain('var,');
+	});
+
+	it('strips apostrophes — "don\'t" splits into "don" (stop word) and "t" (too short)', () => {
+		const corrections = extractCorrections([
+			"don't hardcode database connection strings",
+		]);
+		expect(corrections[0]!.keywords).not.toContain("don't");
+		expect(corrections[0]!.keywords).not.toContain('don');
+	});
+
+	// --- STOP WORD FILTERING ---
+
+	it('filters correction-specific stop words (never, always, instead, use)', () => {
+		const corrections = extractCorrections([
+			'never use eval instead of JSON.parse for untrusted data',
+		]);
+		expect(corrections[0]!.keywords).not.toContain('never');
+		expect(corrections[0]!.keywords).not.toContain('use');
+		expect(corrections[0]!.keywords).not.toContain('instead');
+	});
+
+	// --- TOKEN LIMIT ---
+
+	it('limits to max 3 keyword tokens in path', () => {
+		const corrections = extractCorrections([
+			"don't use synchronous filesystem operations blocking event loop performance",
+		]);
+		const pathParts = corrections[0]!.path.replace('cortex/NO_', '').split('_');
+		expect(pathParts.length).toBeLessThanOrEqual(3);
+	});
+
+	// --- MUST_ PREFIX ---
+
+	it('detects MUST_ for "must" keyword', () => {
+		const corrections = extractCorrections([
+			'you must validate user input before database queries',
+		]);
+		expect(corrections[0]!.prefix).toBe('MUST');
+		expect(corrections[0]!.path).toMatch(/^cortex\/MUST_/);
+	});
+
+	it('detects MUST_ for "required" keyword', () => {
+		const corrections = extractCorrections([
+			'error handling is required for all async operations',
+		]);
+		expect(corrections[0]!.prefix).toBe('MUST');
+	});
+
+	it('detects MUST_ for Korean 반드시', () => {
+		const corrections = extractCorrections([
+			'반드시 타입 검사를 해야 합니다',
+		]);
+		expect(corrections[0]!.prefix).toBe('MUST');
+	});
+
+	// --- WARN_ PREFIX ---
+
+	it('detects WARN_ for "careful" keyword', () => {
+		const corrections = extractCorrections([
+			'be careful with database connection pooling limits',
+		]);
+		expect(corrections[0]!.prefix).toBe('WARN');
+		expect(corrections[0]!.path).toMatch(/^cortex\/WARN_/);
+	});
+
+	it('detects WARN_ for "watch out" keyword', () => {
+		const corrections = extractCorrections([
+			'watch out for race conditions in concurrent handlers',
+		]);
+		expect(corrections[0]!.prefix).toBe('WARN');
+	});
+
+	it('detects WARN_ for Korean 주의', () => {
+		const corrections = extractCorrections([
+			'주의: 이 API는 rate limiting이 있습니다',
+		]);
+		expect(corrections[0]!.prefix).toBe('WARN');
+	});
+
+	// --- PRIORITY ---
+
+	it('NO takes priority over MUST (negation wins)', () => {
+		const corrections = extractCorrections([
+			"don't ignore required validation checks ever",
+		]);
+		expect(corrections[0]!.prefix).toBe('NO');
+	});
+
+	it('MUST takes priority over WARN', () => {
+		const corrections = extractCorrections([
+			'you must be careful with authentication tokens always',
+		]);
+		expect(corrections[0]!.prefix).toBe('MUST');
+	});
+
+	// --- NO STEMMING ---
+
+	it('does not stem keywords (readable names)', () => {
+		const corrections = extractCorrections([
+			"don't use debugging statements in production code",
+		]);
+		expect(corrections[0]!.keywords).toContain('debugging');
+		expect(corrections[0]!.keywords).not.toContain('debugg');
+		expect(corrections[0]!.keywords).toContain('production');
+		expect(corrections[0]!.keywords).not.toContain('produc');
 	});
 });
 

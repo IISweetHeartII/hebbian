@@ -13,7 +13,7 @@
 export function tokenize(name: string): string[] {
 	return name
 		.replace(/([a-z])([A-Z])/g, '$1_$2')   // camelCase → snake
-		.replace(/[_\-\s]+/g, ' ')              // normalize separators
+		.replace(/[^a-zA-Z0-9\u3000-\u9FFF\uAC00-\uD7AF]+/g, ' ')  // punctuation → space
 		.toLowerCase()
 		.split(' ')
 		.map(stem)
