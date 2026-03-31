@@ -75,7 +75,7 @@ describe('runSubsumption', () => {
 
 	it('P6 (prefrontal) bomb → P0-P5 active', () => {
 		const { root } = setupTestBrain();
-		plantBomb(root, 'prefrontal/project/hebb_release');
+		plantBomb(root, 'prefrontal/project/hebbian_release');
 		const brain = scanBrain(root);
 		const result = runSubsumption(brain);
 

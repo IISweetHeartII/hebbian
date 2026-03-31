@@ -7,7 +7,7 @@
 
 <p align="center"><a href="README.ko.md">한국어</a> · <a href="CHANGELOG.md">Changelog</a></p>
 
-# hebb
+# hebbian
 
 ### *Folder-as-neuron brain for any AI agent.*
 
@@ -20,14 +20,14 @@
 **`mkdir` replaces system prompts.** Folders are neurons. Paths are sentences. Counter files are synaptic weights.
 
 ```bash
-npx hebb init ./brain
-npx hebb grow brainstem/禁fallback --brain ./brain
-npx hebb fire brainstem/禁fallback --brain ./brain
-npx hebb emit claude --brain ./brain    # → CLAUDE.md
-npx hebb emit all --brain ./brain       # → All AI formats at once
+npx hebbian init ./brain
+npx hebbian grow brainstem/禁fallback --brain ./brain
+npx hebbian fire brainstem/禁fallback --brain ./brain
+npx hebbian emit claude --brain ./brain    # → CLAUDE.md
+npx hebbian emit all --brain ./brain       # → All AI formats at once
 ```
 
-| Before | hebb |
+| Before | hebbian |
 |--------|------|
 | 1000-line prompts, manually edited | `mkdir` one folder |
 | Vector DB $70/mo | **$0** (folders = DB) |
@@ -37,9 +37,9 @@ npx hebb emit all --brain ./brain       # → All AI formats at once
 
 ---
 
-## Why "hebb"?
+## Why "hebbian"?
 
-Donald Hebb's 1949 principle: **neurons that fire together, wire together.** Repeated corrections strengthen synaptic pathways. That's exactly what this tool does — every `hebb fire` increments a counter, and only frequently-fired neurons survive. Natural selection on your filesystem.
+Donald Hebb's 1949 principle: **neurons that fire together, wire together.** Repeated corrections strengthen synaptic pathways. That's exactly what this tool does — every `hebbian fire` increments a counter, and only frequently-fired neurons survive. Natural selection on your filesystem.
 
 ---
 
@@ -85,16 +85,16 @@ bomb.neuron in any region → cascade halt.
 ## CLI Reference
 
 ```bash
-hebb init <path>                     # Create brain with 7 regions
-hebb emit <target> [--brain <path>]  # Compile rules
-hebb fire <neuron-path>              # Increment counter (+1)
-hebb grow <neuron-path>              # Create neuron (with merge detection)
-hebb rollback <neuron-path>          # Decrement counter (min=1)
-hebb signal <type> <neuron-path>     # Add signal (dopamine/bomb/memory)
-hebb decay [--days N]                # Mark inactive neurons dormant
-hebb watch                           # Auto-recompile on changes
-hebb diag                            # Brain diagnostics
-hebb stats                           # Brain statistics
+hebbian init <path>                     # Create brain with 7 regions
+hebbian emit <target> [--brain <path>]  # Compile rules
+hebbian fire <neuron-path>              # Increment counter (+1)
+hebbian grow <neuron-path>              # Create neuron (with merge detection)
+hebbian rollback <neuron-path>          # Decrement counter (min=1)
+hebbian signal <type> <neuron-path>     # Add signal (dopamine/bomb/memory)
+hebbian decay [--days N]                # Mark inactive neurons dormant
+hebbian watch                           # Auto-recompile on changes
+hebbian diag                            # Brain diagnostics
+hebbian stats                           # Brain statistics
 ```
 
 ### Emit Targets
@@ -112,13 +112,13 @@ hebb stats                           # Brain statistics
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `HEBB_BRAIN` | Brain directory path | `./brain` |
+| `HEBBIAN_BRAIN` | Brain directory path | `./brain` |
 
 ---
 
 ## 3-Tier Emission
 
-hebb compiles your brain into 3 tiers:
+hebbian compiles your brain into 3 tiers:
 
 | Tier | File | Tokens | When |
 |------|------|--------|------|
@@ -132,10 +132,10 @@ This keeps the token budget lean. 293 neurons → ~500 tokens at startup.
 
 ## Synaptic Consolidation
 
-When you `hebb grow`, the system checks for similar existing neurons using Jaccard similarity:
+When you `hebbian grow`, the system checks for similar existing neurons using Jaccard similarity:
 
 ```bash
-hebb grow cortex/frontend/禁console_logging --brain ./brain
+hebbian grow cortex/frontend/禁console_logging --brain ./brain
 # → "禁console_logging" ≈ "禁console_log" (Jaccard ≥ 0.6)
 # → Fires existing neuron instead of creating duplicate
 ```
@@ -146,7 +146,7 @@ hebb grow cortex/frontend/禁console_logging --brain ./brain
 
 ## Compared to
 
-| Feature | .cursorrules | Mem0/Letta | hebb |
+| Feature | .cursorrules | Mem0/Letta | hebbian |
 |---------|-------------|------------|------|
 | 1000+ rules | Token overflow | Vector DB | Folder tree |
 | Infrastructure | $0 | $$$$ | **$0** |
@@ -160,7 +160,7 @@ hebb grow cortex/frontend/禁console_logging --brain ./brain
 
 ## Zero Dependencies
 
-hebb uses only Node.js built-in modules:
+hebbian uses only Node.js built-in modules:
 
 - `node:fs` — filesystem operations
 - `node:path` — path handling
@@ -192,7 +192,7 @@ node --test test/governance.test.js   # Governance only
 
 ## Inspired By
 
-[NeuronFS](https://github.com/rhino-acoustic/NeuronFS) — the original Go implementation that proved folders can be neurons. hebb is a JavaScript reimagination, designed for the npm ecosystem and zero-dependency operation.
+[NeuronFS](https://github.com/rhino-acoustic/NeuronFS) — the original Go implementation that proved folders can be neurons. hebbian is a JavaScript reimagination, designed for the npm ecosystem and zero-dependency operation.
 
 ---
 

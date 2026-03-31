@@ -1,10 +1,10 @@
 {
-  "name": "hebb",
+  "name": "hebbian",
   "version": "0.1.0",
   "description": "Folder-as-neuron brain for any AI agent. mkdir replaces system prompts.",
   "type": "module",
   "bin": {
-    "hebb": "./bin/hebb.js"
+    "hebbian": "./bin/hebbian.js"
   },
   "files": [
     "bin/",
@@ -37,7 +37,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/IISweetHeartII/hebb"
+    "url": "https://github.com/IISweetHeartII/hebbian"
   },
-  "homepage": "https://github.com/IISweetHeartII/hebb#readme"
+  "homepage": "https://github.com/IISweetHeartII/hebbian#readme"
 }

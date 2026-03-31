@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const CLI = join(import.meta.dirname, '..', 'bin', 'hebb.js');
+const CLI = join(import.meta.dirname, '..', 'bin', 'hebbian.js');
 
 function run(args, opts = {}) {
 	return execFileSync('node', [CLI, ...args], {
@@ -18,7 +18,7 @@ function run(args, opts = {}) {
 describe('CLI', () => {
 	it('--help shows usage', () => {
 		const output = run(['--help']);
-		assert.ok(output.includes('hebb'));
+		assert.ok(output.includes('hebbian'));
 		assert.ok(output.includes('COMMANDS'));
 		assert.ok(output.includes('init'));
 		assert.ok(output.includes('emit'));
@@ -28,7 +28,7 @@ describe('CLI', () => {
 
 	it('--version shows version', () => {
 		const output = run(['--version']);
-		assert.ok(output.includes('hebb v'));
+		assert.ok(output.includes('hebbian v'));
 	});
 
 	it('no command shows help', () => {

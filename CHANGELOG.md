@@ -16,7 +16,7 @@ Initial release.
 - **Decay** — dormancy sweep for inactive neurons
 - **Watch Mode** — auto-recompile on filesystem changes
 - **Brain Init** — creates 7-region brain with starter neurons
-- **CLI** — `npx hebb` with 12 commands
+- **CLI** — `npx hebbian` with 12 commands
 - **Governance Tests** — SCC 17/17 + MLA 15/15 = 100%
 
 ### Architecture

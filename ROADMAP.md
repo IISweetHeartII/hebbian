@@ -1,4 +1,4 @@
-# hebb Roadmap
+# hebbian Roadmap
 
 > Phase 2+ implementation plan for full NeuronFS feature parity.
 > Each phase is independently shippable as a minor version.
@@ -29,14 +29,14 @@ Core brain mechanics. Zero dependencies. 135 tests, 97.8% line coverage.
 
 ## Phase 2 — v0.2.0: REST API + Inbox Processing
 
-**Goal:** Programmatic brain manipulation via HTTP. Enable external tools (n8n, webhooks, dashboards) to interact with hebb.
+**Goal:** Programmatic brain manipulation via HTTP. Enable external tools (n8n, webhooks, dashboards) to interact with hebbian.
 
 ### 2.1 REST API (`lib/api.js`)
 
 Port from: `NeuronFS/runtime/main.go` lines 2099-2434
 
 ```bash
-hebb api [--port 9090] [--brain ./brain]
+hebbian api [--port 9090] [--brain ./brain]
 ```
 
 **Endpoints:**
@@ -130,14 +130,14 @@ Port from: `NeuronFS/runtime/main.go` lines 1300-1342
 
 ## Phase 3 — v0.3.0: MCP Server
 
-**Goal:** Enable hebb as a Model Context Protocol tool server for Claude Code, Cursor, and any MCP-compatible client.
+**Goal:** Enable hebbian as a Model Context Protocol tool server for Claude Code, Cursor, and any MCP-compatible client.
 
 ### 3.1 MCP Server (`lib/mcp.js`)
 
 Port from: `NeuronFS/runtime/mcp_server.go` lines 32-544
 
 ```bash
-hebb mcp [--brain ./brain]
+hebbian mcp [--brain ./brain]
 ```
 
 **Protocol:** JSON-RPC 2.0 over stdio
@@ -169,9 +169,9 @@ hebb mcp [--brain ./brain]
 // ~/.claude/settings.json
 {
   "mcpServers": {
-    "hebb": {
+    "hebbian": {
       "command": "npx",
-      "args": ["hebb", "mcp", "--brain", "/path/to/brain"]
+      "args": ["hebbian", "mcp", "--brain", "/path/to/brain"]
     }
   }
 }
@@ -188,7 +188,7 @@ hebb mcp [--brain ./brain]
 Port from: `NeuronFS/runtime/evolve.go` lines 87-514
 
 ```bash
-hebb evolve [--dry-run] [--brain ./brain]
+hebbian evolve [--dry-run] [--brain ./brain]
 ```
 
 **Pipeline:**
@@ -244,8 +244,8 @@ Port from: `NeuronFS/runtime/main.go` lines 1725-1808
 Port from: `NeuronFS/runtime/v4-hook.cjs` (299 lines)
 
 ```bash
-export HEBB_BRAIN="$HOME/hebb/brain"
-export NODE_OPTIONS="--require $(npx -y hebb hook-path)"
+export HEBBIAN_BRAIN="$HOME/hebbian/brain"
+export NODE_OPTIONS="--require $(npx -y hebbian hook-path)"
 # Then start any Node.js-based AI IDE
 ```
 
@@ -253,7 +253,7 @@ export NODE_OPTIONS="--require $(npx -y hebb hook-path)"
 - Intercept `https.request()` and `globalThis.fetch()`
 - Detect LLM API hostnames: `generativelanguage.googleapis.com`, `api.anthropic.com`, `api.openai.com`
 - Scan brain for promoted neurons (counter >= 5)
-- Append `[hebb Live Context]` block to system prompt
+- Append `[hebbian Live Context]` block to system prompt
 - Cache rules for 30 seconds (re-scan on TTL expiry)
 - Optionally dump transcripts to `_agents/global_inbox/transcript_latest.jsonl`
 
@@ -272,7 +272,7 @@ When user corrects a mistake, append to _inbox/corrections.jsonl:
 {
   "hooks": {
     "PreToolUse": [{
-      "command": "npx hebb emit claude --brain $HEBB_BRAIN"
+      "command": "npx hebbian emit claude --brain $HEBBIAN_BRAIN"
     }]
   }
 }
@@ -282,19 +282,19 @@ When user corrects a mistake, append to _inbox/corrections.jsonl:
 
 ## Phase 6 — v0.6.0: Supervisor + Heartbeat
 
-**Goal:** Process management for long-running hebb services.
+**Goal:** Process management for long-running hebbian services.
 
 ### 6.1 Supervisor (`lib/supervisor.js`)
 
 Port from: `NeuronFS/runtime/supervisor.go` (430 lines)
 
 ```bash
-hebb supervisor [--brain ./brain]
+hebbian supervisor [--brain ./brain]
 ```
 
 **Manages:**
-- `hebb api` (HTTP server)
-- `hebb watch` (filesystem watcher)
+- `hebbian api` (HTTP server)
+- `hebbian watch` (filesystem watcher)
 - Custom child processes (configurable)
 
 **Features:**
@@ -337,7 +337,7 @@ All features are ported from [NeuronFS](https://github.com/rhino-acoustic/Neuron
 **When implementing each phase:**
 1. Read the referenced NeuronFS source file + line range
 2. Understand the Go data structures and algorithm
-3. Port to JS using hebb's existing patterns (JSDoc types, node:fs, etc.)
+3. Port to JS using hebbian's existing patterns (JSDoc types, node:fs, etc.)
 4. Write tests first (TDD), then implement
 5. Ensure zero new runtime dependencies
 

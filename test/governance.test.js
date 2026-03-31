@@ -1,4 +1,4 @@
-// hebb — Governance Benchmark Tests
+// hebbian — Governance Benchmark Tests
 //
 // Two axes:
 //   SCC (Subsumption Cascade Correctness) — 20 scenarios

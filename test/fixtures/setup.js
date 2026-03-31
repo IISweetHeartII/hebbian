@@ -41,7 +41,7 @@ export function setupTestBrain() {
 	neuron(root, 'ego/tone/data_driven', 45);
 
 	// ─── Region: prefrontal (P6) ───
-	neuron(root, 'prefrontal/project/hebb_release', 10);
+	neuron(root, 'prefrontal/project/hebbian_release', 10);
 	neuron(root, 'prefrontal/todo/write_tests', 8);
 
 	// ─── Axon connections (brainstem ↔ limbic) ───
