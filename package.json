@@ -1,0 +1,43 @@
+{
+  "name": "hebb",
+  "version": "0.1.0",
+  "description": "Folder-as-neuron brain for any AI agent. mkdir replaces system prompts.",
+  "type": "module",
+  "bin": {
+    "hebb": "./bin/hebb.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage",
+    "lint": "biome check .",
+    "lint:fix": "biome check --fix ."
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "brain",
+    "neuron",
+    "filesystem",
+    "memory",
+    "prompt",
+    "rules",
+    "cli",
+    "hebbian",
+    "subsumption"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IISweetHeartII/hebb"
+  },
+  "homepage": "https://github.com/IISweetHeartII/hebb#readme"
+}
