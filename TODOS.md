@@ -11,3 +11,46 @@ was modified and re-emits CLAUDE.md. Or integrate with the existing `watch` comm
 **Priority:** Low. Brain rarely changes mid-session in normal use.
 **Depends on:** WS1 (hooks infrastructure)
 **Source:** Codex outside voice finding during eng review (2026-03-31)
+
+## Deferred: Supervisor + Heartbeat (was Phase 6)
+
+Process management for long-running hebbian services (api, watch).
+CLI-first approach doesn't need this for the core use case.
+
+**What it would do:** Exponential backoff restart, circuit breaker, memory limits,
+deadlock detection, heartbeat priority queue.
+
+**Priority:** Low. Revisit if hebbian gets long-running daemon use cases.
+**Source:** ROADMAP.md Phase 6, deferred during CEO review (2026-04-01)
+
+## Deferred: Live Injection Hook (was Phase 5)
+
+Intercept https.request/fetch to inject brain into all LLM API requests.
+emit + IDE hooks already cover Claude/Cursor/Gemini/Copilot targets.
+
+**Priority:** Low. Only needed if an IDE has no hook/config file support.
+**Source:** ROADMAP.md Phase 5, deferred during CEO review (2026-04-01)
+
+## Deferred: MCP Server (was Phase 3)
+
+JSON-RPC 2.0 over stdio for MCP-compatible clients.
+CLI hooks replace this entirely for Claude Code. Other MCP clients can use the REST API.
+
+**Priority:** None. Revisit only if MCP becomes the dominant integration pattern.
+**Source:** ROADMAP.md Phase 3, killed during design review (2026-03-31)
+
+## Deferred: Multi-brain composition
+
+Global brain + per-project brain, with composition/override rules.
+Needs design work: which brain wins on conflict? How to merge?
+
+**Priority:** Medium. Natural extension of "Personal AI OS" vision.
+**Source:** Design doc open question #3 (2026-03-31)
+
+## Deferred: Idle loop (auto-evolve)
+
+Autonomous evolve cycle on 5-min API inactivity.
+Start with manual `hebbian evolve`, add auto later.
+
+**Priority:** Medium. Depends on evolve engine stability.
+**Source:** Design doc open question #1 (2026-03-31)

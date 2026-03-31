@@ -1,16 +1,18 @@
 # hebbian Roadmap
 
-> Phase 2+ implementation plan for full NeuronFS feature parity.
+> Self-evolving brain for AI agents. CLI-first, zero dependencies, filesystem-as-memory.
 > Each phase is independently shippable as a minor version.
+>
+> Design doc: `~/.gstack/projects/IISweetHeartII-hebbian/pppp-main-design-20260331-223241.md`
 
 ---
 
-## Phase 1 — v0.1.0 (DONE)
+## Phase 1 — v0.1.0: Core Brain (DONE)
 
 Core brain mechanics. Zero dependencies. 135 tests, 97.8% line coverage.
 
 - [x] Brain scanner (7-region filesystem walker)
-- [x] Subsumption cascade (P0→P6 priority + bomb circuit breaker)
+- [x] Subsumption cascade (P0-P6 priority + bomb circuit breaker)
 - [x] 3-tier emit (bootstrap/index/per-region rules)
 - [x] Multi-target output (claude/cursor/gemini/copilot/generic/all)
 - [x] Marker-based injection (preserves surrounding content)
@@ -27,329 +29,167 @@ Core brain mechanics. Zero dependencies. 135 tests, 97.8% line coverage.
 
 ---
 
-## Phase 2 — v0.2.0: REST API + Inbox Processing
+## Phase 2 — v0.2.0: REST API + Inbox (DONE)
 
-**Goal:** Programmatic brain manipulation via HTTP. Enable external tools (n8n, webhooks, dashboards) to interact with hebbian.
+Programmatic brain manipulation via HTTP. External tools (n8n, webhooks, dashboards).
 
-### 2.1 REST API (`lib/api.js`)
-
-Port from: `NeuronFS/runtime/main.go` lines 2099-2434
-
-```bash
-hebbian api [--port 9090] [--brain ./brain]
-```
-
-**Endpoints:**
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/health` | Process health + brain stats |
-| GET | `/api/brain` | Full brain state JSON |
-| GET | `/api/read?region=cortex` | Read region rules (RAG retrieval + auto-fire top 3) |
-| POST | `/api/grow` | `{"path":"cortex/..."}` |
-| POST | `/api/fire` | `{"path":"cortex/..."}` |
-| POST | `/api/signal` | `{"path":"...", "type":"dopamine"}` |
-| POST | `/api/rollback` | `{"path":"cortex/..."}` |
-| POST | `/api/decay` | `{"days":30}` |
-| POST | `/api/dedup` | Batch merge similar neurons |
-| POST | `/api/inject` | Force re-emit all tiers |
-| POST | `/api/report` | `{"message":"...", "priority":"normal"}` |
-| GET | `/api/reports` | List pending reports |
-
-**Implementation notes:**
-- Use `node:http` (zero dependencies)
-- CORS: allow all origins
-- Activity tracking: update `lastAPIActivity` on mutations
-- JSON response for all endpoints
-- Port `buildBrainJSONResponse()` and `buildHealthJSON()` from `dashboard.go` lines 132-190
-
-**Data schemas (from dashboard.go):**
-
-```js
-// BrainJSON — GET /api/brain
-{
-  root: string,
-  regions: [{
-    name: string,          // "cortex"
-    icon: string,          // "🧠"
-    ko: string,            // "지식/기술"
-    priority: number,      // 0-6
-    hasBomb: boolean,
-    neurons: [{
-      name: string,
-      path: string,
-      counter: number,
-      contra: number,
-      dopamine: number,
-      hasBomb: boolean,
-      hasMemory: boolean,
-      isDormant: boolean,
-      depth: number,
-      modTime: number       // unix ms
-    }],
-    axons: string[]
-  }],
-  bombSource: string,
-  firedNeurons: number,
-  totalNeurons: number,
-  totalCounter: number
-}
-```
-
-**Test plan:** `test/api.test.js` — HTTP request/response tests with `node:http` client
-
-### 2.2 Inbox Processing (`lib/inbox.js`)
-
-Port from: `NeuronFS/runtime/main.go` lines 1425-1544
-
-**Purpose:** Parse `_inbox/corrections.jsonl`, auto-create/fire neurons from AI corrections.
-
-**Entry format:**
-```jsonl
-{"ts":"...","type":"correction","text":"reason","path":"cortex/category/rule","counter_add":1,"author":"pm"}
-```
-
-**Logic:**
-1. Read `_inbox/corrections.jsonl`
-2. For each line: parse JSON → validate path → security check (no traversal)
-3. Dopamine inflation filter: only PM/admin can award dopamine
-4. If neuron exists → fire N times; else → grow + fire (N-1)
-5. Clear inbox file after processing
-
-**Test plan:** `test/inbox.test.js` — JSONL parsing, security checks, dopamine filter
-
-### 2.3 Episode Logging (`lib/episode.js`)
-
-Port from: `NeuronFS/runtime/main.go` lines 1300-1342
-
-**Purpose:** Write events to `hippocampus/session_log/memoryN.neuron` (circular buffer, max 100).
-
-**Used by:** grow, fire, signal, evolve, inbox processing
+- [x] REST API — 12 endpoints (health, brain, read, grow, fire, signal, rollback, decay, dedup, inject, report, reports)
+- [x] Inbox processing — parse `_inbox/corrections.jsonl`, auto-create/fire neurons
+- [x] Episode logging — hippocampus/session_log circular buffer (max 100)
 
 ---
 
-## Phase 3 — v0.3.0: MCP Server
+## Phase 3 — v0.3.x: Claude Code Integration (DONE)
 
-**Goal:** Enable hebbian as a Model Context Protocol tool server for Claude Code, Cursor, and any MCP-compatible client.
+CLI-first integration with Claude Code. No MCP — hooks do everything MCP would.
 
-### 3.1 MCP Server (`lib/mcp.js`)
+- [x] `hebbian claude install` — one command, hooks are set
+- [x] `hebbian digest` — extract corrections from conversation transcript
+- [x] SessionStart hook — emit brain to CLAUDE.md on every session
+- [x] Stop hook — digest conversation for corrections on session end
+- [x] Stable npx path resolution — survives node/hebbian upgrades
+- [x] Marker-based prepend — first emit preserves existing CLAUDE.md content
+- [x] Auto-update check — npm registry with cache (60min/720min TTL) + banner
+- [x] `hebbian claude status` — hook health + version info
 
-Port from: `NeuronFS/runtime/mcp_server.go` lines 32-544
+### Why not MCP?
 
-```bash
-hebbian mcp [--brain ./brain]
-```
-
-**Protocol:** JSON-RPC 2.0 over stdio
-
-**10 Tools to implement:**
-
-| # | Tool | Input | Handler |
-|---|------|-------|---------|
-| 1 | `read_region` | `{region: enum}` | Read _rules.md + auto-fire top 3 |
-| 2 | `read_brain` | — | Full brain state JSON |
-| 3 | `grow` | `{path: string}` | growNeuron() with merge detection |
-| 4 | `fire` | `{path: string}` | fireNeuron() |
-| 5 | `signal` | `{path, type: enum}` | signalNeuron() |
-| 6 | `correct` | `{path, text}` | Grow or fire based on existence |
-| 7 | `evolve` | `{dry_run: bool}` | Trigger LLM evolution (Phase 4) |
-| 8 | `report` | `{message, priority}` | Queue report to inbox |
-| 9 | `pending_reports` | `{done: bool}` | List/clear pending reports |
-| 10 | `heartbeat_ack` | `{result: string}` | ACK heartbeat injection |
-
-**Implementation notes:**
-- Use `@modelcontextprotocol/sdk` (or implement minimal JSON-RPC 2.0 stdio parser — ~100 lines)
-- Redirect console output to stderr to keep stdio clean for JSON-RPC
-
-**Test plan:** `test/mcp.test.js` — tool registration, input validation, JSON-RPC message format
-
-### 3.2 Claude Code Integration
-
-```jsonc
-// ~/.claude/settings.json
-{
-  "mcpServers": {
-    "hebbian": {
-      "command": "npx",
-      "args": ["hebbian", "mcp", "--brain", "/path/to/brain"]
-    }
-  }
-}
-```
+MCP requires a separate server process, complex configuration, and doesn't add
+capabilities over CLI hooks. `hebbian emit` injects brain rules at session start.
+`hebbian digest` captures learning at session end. That's the whole loop.
 
 ---
 
-## Phase 4 — v0.4.0: LLM Evolution (Evolve)
+## Phase 4 — v0.4.0: Immune System (NEXT)
 
-**Goal:** Autonomous brain evolution powered by LLM (Groq, OpenAI, or any compatible API).
+The brain that evolves. LLM-powered evolution, candidate staging, and the "whoa" demo.
 
-### 4.1 Evolve Engine (`lib/evolve.js`)
+### 4.0 Digest Keyword Extraction Improvement
 
-Port from: `NeuronFS/runtime/evolve.go` lines 87-514
+Current digest creates ugly neuron names (`NO_don't_console.log_debugging,_structur`).
+Clean up keyword extraction to produce `NO_console_log` style names.
+
+- [ ] Stop-word removal (don't, the, a, is, etc.)
+- [ ] Snake_case normalization
+- [ ] Max 3-4 keyword tokens per name
+- [ ] Prefix preservation (NO_, DO_, MUST_, WARN_)
+
+### 4.1 Evolve Engine (`src/evolve.ts`)
+
+LLM-powered brain evolution. Port from NeuronFS evolve.go.
 
 ```bash
 hebbian evolve [--dry-run] [--brain ./brain]
 ```
 
-**Pipeline:**
-1. `collectEpisodes()` — Read hippocampus session logs (last 100)
-2. `buildBrainSummary()` — Markdown snapshot of current brain state
-3. `buildEvolvePrompt()` — Zero-shot prompt with axioms + brain + episodes
-4. `callLLM()` — HTTP POST to Groq/OpenAI API
-5. Parse JSON response: `{summary, insights, actions[]}`
-6. Validate actions:
-   - Max 10 per cycle
-   - Prefer fire > grow (consolidation over duplication)
-   - Block: brainstem (P0), limbic (P1), sensors/brand modifications
-   - Valid types: grow, fire, signal, prune, decay
-7. Execute or dry-run
+- [ ] Collect episodes from hippocampus session log (last 100)
+- [ ] Build markdown summary of current brain state
+- [ ] Build zero-shot prompt with axioms + brain + episodes
+- [ ] Call LLM (Groq/OpenAI) with structured JSON response
+- [ ] Parse actions: grow, fire, signal, prune, decay (max 10 per cycle)
+- [ ] Validate: block brainstem/limbic/sensors, prefer fire over grow, schema check
+- [ ] Execute or dry-run mode
+- [ ] Graceful failure: skip cycle on API error, log to episode
 
-**LLM Request (from evolve.go lines 390-402):**
-```js
-{
-  model: "llama-3.3-70b-versatile",
-  messages: [
-    { role: "system", content: "Korean persona as 백혈구..." },
-    { role: "user", content: buildEvolvePrompt() }
-  ],
-  temperature: 0.3,
-  max_tokens: 4096,
-  response_format: { type: "json_object" }
-}
+Environment: `GROQ_API_KEY` or `OPENAI_API_KEY`
+
+### 4.2 Candidate Neuron Staging
+
+New neurons from evolve/inbox/digest land in `{region}/_candidates/` with probation:
+
+- [ ] Created with counter=1
+- [ ] Graduate at counter >= 3 (move to parent region)
+- [ ] Auto-decay if not fired within 14 days
+- [ ] `_candidates/` already invisible to scan/emit/decay (existing `_` prefix convention)
+
+### 4.3 `hebbian doctor`
+
+Self-diagnostic command for DX. "Why isn't it working?"
+
+```bash
+hebbian doctor [--brain ./brain]
 ```
 
-**Environment:** `GROQ_API_KEY` or `OPENAI_API_KEY`
+- [ ] Hook installation status (settings.local.json exists? commands valid?)
+- [ ] npx path resolution check
+- [ ] Brain integrity (regions exist? neurons parseable?)
+- [ ] npm version vs installed version
+- [ ] Node.js version check (>= 22)
+- [ ] Actionable fix suggestions for each issue
 
-**Test plan:** `test/evolve.test.js` — prompt building, action validation, mock LLM response
+### 4.4 README + Demo (parallel with 4.1)
 
-### 4.2 Idle Loop (`lib/idle.js`)
+The "whoa in 2 minutes" README. Ships alongside evolve.
 
-Port from: `NeuronFS/runtime/main.go` lines 1725-1808
+- [ ] 30-second install to first brain
+- [ ] The demo: correct Claude -> hebbian learns -> next session is different
+- [ ] Architecture diagram (text-based)
+- [ ] Comparison table vs Mem0/MemOS
+- [ ] Starter brain templates (TypeScript strict mode, Python best practices)
 
-**Autonomous cycle on 5-min API inactivity:**
-1. Evolve (if API key available)
-2. Auto-decay (30+ days inactive)
-3. Dedup (Jaccard merge)
-4. Git snapshot
-5. Cooldown: 30 min before next cycle
+### 4.5 Version Bump + Promotion
+
+- [ ] Bump to v0.4.0
+- [ ] npm publish
+- [ ] GitHub release with changelog
 
 ---
 
-## Phase 5 — v0.5.0: Live Injection Hook
+## Phase 5 — v0.5.0: Feedback Loop
 
-**Goal:** Inject brain rules into every LLM API request from AI IDEs, without requiring MCP.
+Outcome tracking enriches the evolve engine with real signals.
 
-### 5.1 Injection Hook (`lib/hook.cjs`)
+### 5.1 Outcome Tracking
 
-Port from: `NeuronFS/runtime/v4-hook.cjs` (299 lines)
+Enrich episode logging with outcome signals:
 
-```bash
-export HEBBIAN_BRAIN="$HOME/hebbian/brain"
-export NODE_OPTIONS="--require $(npx -y hebbian hook-path)"
-# Then start any Node.js-based AI IDE
-```
+- [ ] `test_pass` / `test_fail` — did tests pass after AI changes?
+- [ ] `revert` — did user undo AI's work? (git diff comparison)
+- [ ] `correction` — did user explicitly correct AI?
+- [ ] `acceptance` — did user accept without changes?
+- [ ] Attribution: signals apply to all neurons injected at SessionStart
+- [ ] Protected regions: brainstem/limbic/sensors signals logged but not acted on
 
-**Mechanism:**
-- Intercept `https.request()` and `globalThis.fetch()`
-- Detect LLM API hostnames: `generativelanguage.googleapis.com`, `api.anthropic.com`, `api.openai.com`
-- Scan brain for promoted neurons (counter >= 5)
-- Append `[hebbian Live Context]` block to system prompt
-- Cache rules for 30 seconds (re-scan on TTL expiry)
-- Optionally dump transcripts to `_agents/global_inbox/transcript_latest.jsonl`
+### 5.2 Evolve Engine Integration
 
-**Growth Protocol injection:**
-```
-When user corrects a mistake, append to _inbox/corrections.jsonl:
-{"type":"correction","path":"cortex/[category]/[rule_name]","text":"reason","counter_add":1}
-```
-
-**Note:** This must be CommonJS (`.cjs`) because `--require` doesn't support ESM.
-
-### 5.2 Claude Code Hooks Integration
-
-```jsonc
-// ~/.claude/settings.json
-{
-  "hooks": {
-    "PreToolUse": [{
-      "command": "npx hebbian emit claude --brain $HEBBIAN_BRAIN"
-    }]
-  }
-}
-```
+- [ ] Evolve uses outcome signals (not just fire count) for decision-making
+- [ ] Neurons in high-revert sessions accumulate contra signals
+- [ ] Candidate graduation considers outcome signals
 
 ---
 
-## Phase 6 — v0.6.0: Supervisor + Heartbeat
+## Deferred (TODOS.md)
 
-**Goal:** Process management for long-running hebbian services.
+Items considered and explicitly deferred:
 
-### 6.1 Supervisor (`lib/supervisor.js`)
-
-Port from: `NeuronFS/runtime/supervisor.go` (430 lines)
-
-```bash
-hebbian supervisor [--brain ./brain]
-```
-
-**Manages:**
-- `hebbian api` (HTTP server)
-- `hebbian watch` (filesystem watcher)
-- Custom child processes (configurable)
-
-**Features:**
-- Exponential backoff restart: `delay = min(1s * 2^n, 5min)`
-- Circuit breaker: 10+ rapid crashes → 60s cooldown + alert
-- Memory limit: 500MB threshold → kill + restart
-- Deadlock detection: ping `/api/health` every 60s
-- Lock files: PM can disable individual processes
-
-### 6.2 Heartbeat Loop (`lib/heartbeat.js`)
-
-Port from: `NeuronFS/runtime/main.go` lines 1934-2093
-
-**Priority queue:**
-1. P0: Memory Observer — read transcripts, find un-neuronized decisions
-2. P1: Pending reports — process user reports
-3. P2: Health check — verify supervisor/logs freshness
-4. P3: Todo fallback — execute pending prefrontal tasks
+| Item | Reason |
+|------|--------|
+| MCP Server | CLI hooks do everything MCP would, without the complexity |
+| Live Injection Hook | emit + IDE hooks cover all targets |
+| Supervisor + Heartbeat | CLI-first approach doesn't need process management |
+| Multi-brain composition | Post-MVP, needs design work |
+| Idle loop (auto-evolve) | Start manual, add auto later |
+| Mid-session re-emit | Low priority, brain rarely changes mid-session |
 
 ---
 
 ## Source Reference
 
-All features are ported from [NeuronFS](https://github.com/rhino-acoustic/NeuronFS) (Go, MIT license).
+Features ported from [NeuronFS](https://github.com/rhino-acoustic/NeuronFS) (Go, MIT license).
 
-**Key source files for each phase:**
-
-| Phase | NeuronFS Source | Lines | Complexity |
-|-------|----------------|-------|------------|
-| 2 (API) | `runtime/main.go` | 2099-2434 | Medium |
-| 2 (Inbox) | `runtime/main.go` | 1425-1544 | Medium |
-| 2 (Episode) | `runtime/main.go` | 1300-1342 | Simple |
-| 3 (MCP) | `runtime/mcp_server.go` | 32-544 | Medium |
-| 4 (Evolve) | `runtime/evolve.go` | 87-514 | Complex |
-| 4 (Idle) | `runtime/main.go` | 1725-1808 | Medium |
-| 5 (Hook) | `runtime/v4-hook.cjs` | 1-299 | Complex |
-| 6 (Supervisor) | `runtime/supervisor.go` | 69-390 | Complex |
-| 6 (Heartbeat) | `runtime/main.go` | 1934-2093 | Complex |
-
-**When implementing each phase:**
-1. Read the referenced NeuronFS source file + line range
-2. Understand the Go data structures and algorithm
-3. Port to JS using hebbian's existing patterns (JSDoc types, node:fs, etc.)
-4. Write tests first (TDD), then implement
-5. Ensure zero new runtime dependencies
+| Phase | NeuronFS Source | Lines |
+|-------|----------------|-------|
+| 4.1 (Evolve) | `runtime/evolve.go` | 87-514 |
+| 5.1 (Outcomes) | `runtime/main.go` | 1725-1808 |
 
 ---
 
 ## Version Timeline
 
-| Version | Content | Dependency |
-|---------|---------|------------|
-| v0.1.0 | Core CLI (DONE) | — |
-| v0.2.0 | REST API + Inbox | v0.1.0 |
-| v0.3.0 | MCP Server | v0.2.0 (uses API handlers) |
-| v0.4.0 | LLM Evolve | v0.2.0 (needs episodes + inbox) |
-| v0.5.0 | Live Hook | v0.1.0 (standalone) |
-| v0.6.0 | Supervisor | v0.2.0 (manages api + watch) |
+| Version | Content | Status |
+|---------|---------|--------|
+| v0.1.0 | Core CLI | DONE |
+| v0.2.0 | REST API + Inbox | DONE |
+| v0.3.x | Claude Code Integration | DONE (current: v0.3.2) |
+| v0.4.0 | Immune System (evolve + candidates + README) | NEXT |
+| v0.5.0 | Feedback Loop (outcome tracking) | planned |
