@@ -38,6 +38,8 @@ COMMANDS:
   rollback <neuron-path>          Decrement neuron counter (min=1)
   signal <type> <neuron-path>     Add signal (dopamine/bomb/memory)
   decay [--days N]                Mark inactive neurons dormant (default 30)
+  dedup                           Batch merge similar neurons (Jaccard >= 0.6)
+  snapshot                        Git commit current brain state
   watch                           Watch for changes + auto-recompile
   diag                            Print brain diagnostics
   stats                           Print brain statistics
@@ -157,6 +159,16 @@ async function main(argv) {
 			const days = values.days ? parseInt(values.days, 10) : 30;
 			const { runDecay } = await import('../lib/decay.js');
 			await runDecay(brainRoot, days);
+			break;
+		}
+		case 'dedup': {
+			const { runDedup } = await import('../lib/dedup.js');
+			runDedup(brainRoot);
+			break;
+		}
+		case 'snapshot': {
+			const { gitSnapshot } = await import('../lib/snapshot.js');
+			gitSnapshot(brainRoot);
 			break;
 		}
 		case 'watch': {

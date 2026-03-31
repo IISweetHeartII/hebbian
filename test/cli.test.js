@@ -93,4 +93,86 @@ describe('CLI', () => {
 		assert.ok(output.includes('Brain Diagnostics'));
 		assert.ok(output.includes('brainstem'));
 	});
+
+	it('rollback decrements counter', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'hebb-cli-rb-'));
+		const brainDir = join(dir, 'brain');
+		run(['init', brainDir]);
+		run(['grow', 'cortex/test_rule', '--brain', brainDir]);
+		run(['fire', 'cortex/test_rule', '--brain', brainDir]);
+		// Now counter=2, rollback to 1
+		const output = run(['rollback', 'cortex/test_rule', '--brain', brainDir]);
+		assert.ok(output.includes('rollback'));
+	});
+
+	it('signal adds dopamine', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'hebb-cli-sig-'));
+		const brainDir = join(dir, 'brain');
+		run(['init', brainDir]);
+		run(['grow', 'cortex/test_rule', '--brain', brainDir]);
+
+		const output = run(['signal', 'dopamine', 'cortex/test_rule', '--brain', brainDir]);
+		assert.ok(output.includes('dopamine'));
+		assert.ok(existsSync(join(brainDir, 'cortex/test_rule', 'dopamine1.neuron')));
+	});
+
+	it('decay runs dormancy sweep', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'hebb-cli-decay-'));
+		const brainDir = join(dir, 'brain');
+		run(['init', brainDir]);
+
+		const output = run(['decay', '--days', '0', '--brain', brainDir]);
+		assert.ok(output.includes('decay'));
+	});
+
+	it('dedup runs batch merge', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'hebb-cli-dedup-'));
+		const brainDir = join(dir, 'brain');
+		run(['init', brainDir]);
+
+		const output = run(['dedup', '--brain', brainDir]);
+		assert.ok(output.includes('dedup'));
+	});
+
+	it('stats is alias for diag', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'hebb-cli-stats-'));
+		const brainDir = join(dir, 'brain');
+		run(['init', brainDir]);
+
+		const output = run(['stats', '--brain', brainDir]);
+		assert.ok(output.includes('Brain Diagnostics'));
+	});
+
+	it('init warns when brain already exists', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'hebb-cli-reinit-'));
+		const brainDir = join(dir, 'brain');
+		run(['init', brainDir]);
+		// Second init should warn
+		const output = run(['init', brainDir]);
+		assert.ok(output.includes('already exists'));
+	});
+
+	it('missing arg for fire exits with error', () => {
+		assert.throws(() => run(['fire']), (err) => err.status === 1);
+	});
+
+	it('missing arg for grow exits with error', () => {
+		assert.throws(() => run(['grow']), (err) => err.status === 1);
+	});
+
+	it('missing arg for emit exits with error', () => {
+		assert.throws(() => run(['emit']), (err) => err.status === 1);
+	});
+
+	it('missing arg for rollback exits with error', () => {
+		assert.throws(() => run(['rollback']), (err) => err.status === 1);
+	});
+
+	it('missing arg for signal exits with error', () => {
+		assert.throws(() => run(['signal']), (err) => err.status === 1);
+	});
+
+	it('missing arg for init exits with error', () => {
+		assert.throws(() => run(['init']), (err) => err.status === 1);
+	});
 });
