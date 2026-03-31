@@ -6,9 +6,10 @@
 // SessionStart hook: refreshes CLAUDE.md with latest brain state
 // Stop hook: digests conversation transcript for corrections
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { HOOK_MARKER } from './constants';
+import { HOOK_MARKER, REGIONS } from './constants';
+import { initBrain } from './init';
 
 const SETTINGS_DIR = '.claude';
 const SETTINGS_FILE = 'settings.local.json';
@@ -37,12 +38,18 @@ interface HookGroup {
  */
 export function installHooks(brainRoot: string, projectRoot?: string): void {
 	const root = projectRoot || process.cwd();
+	const resolvedBrain = resolve(brainRoot);
+
+	// Auto-init brain if it doesn't exist
+	if (!existsSync(resolvedBrain) || !hasBrainRegions(resolvedBrain)) {
+		initBrain(resolvedBrain);
+	}
+
 	const settingsDir = join(root, SETTINGS_DIR);
 	const settingsPath = join(settingsDir, SETTINGS_FILE);
 
 	// Determine if we need --brain flag
 	const defaultBrain = resolve(root, 'brain');
-	const resolvedBrain = resolve(brainRoot);
 	const brainFlag = resolvedBrain === defaultBrain ? '' : ` --brain ${resolvedBrain}`;
 
 	// Read existing settings or start fresh
@@ -225,4 +232,17 @@ export function checkHooks(projectRoot?: string): HookStatus {
 	}
 
 	return status;
+}
+
+/**
+ * Check if a directory contains brain regions.
+ */
+function hasBrainRegions(dir: string): boolean {
+	if (!existsSync(dir)) return false;
+	try {
+		const entries = readdirSync(dir);
+		return (REGIONS as readonly string[]).some((r) => entries.includes(r));
+	} catch {
+		return false;
+	}
 }

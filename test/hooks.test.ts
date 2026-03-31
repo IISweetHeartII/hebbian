@@ -134,6 +134,32 @@ describe('hooks', () => {
 			expect(msg).toContain('[hebbian]');
 		});
 
+		it('auto-inits brain when directory does not exist', () => {
+			const dir = makeTempDir();
+			const brainDir = join(dir, 'brain');
+			// Don't create brainDir — let installHooks auto-init
+
+			installHooks(brainDir, dir);
+
+			// Brain should have been auto-initialized
+			expect(existsSync(join(brainDir, 'brainstem'))).toBe(true);
+			expect(existsSync(join(brainDir, 'cortex'))).toBe(true);
+			// Hooks should still be installed
+			expect(existsSync(join(dir, '.claude', 'settings.local.json'))).toBe(true);
+		});
+
+		it('auto-inits brain when directory exists but has no regions', () => {
+			const dir = makeTempDir();
+			const brainDir = join(dir, 'brain');
+			mkdirSync(brainDir, { recursive: true });
+			// Empty dir, no regions
+
+			installHooks(brainDir, dir);
+
+			expect(existsSync(join(brainDir, 'brainstem'))).toBe(true);
+			expect(existsSync(join(brainDir, 'cortex'))).toBe(true);
+		});
+
 		it('handles malformed existing settings.local.json', () => {
 			const dir = makeTempDir();
 			const brainDir = join(dir, 'brain');
