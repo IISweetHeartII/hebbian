@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { REGIONS } from './constants';
-import { growNeuron } from './grow';
+import { growCandidate } from './candidates';
 import { fireNeuron } from './fire';
 import { signalNeuron } from './signal';
 import { logEpisode } from './episode';
@@ -123,10 +123,13 @@ function applyCorrection(brainRoot: string, correction: Correction): void {
 			fireNeuron(brainRoot, neuronPath);
 		}
 	} else {
-		// Neuron doesn't exist — grow + fire (N-1)
-		growNeuron(brainRoot, neuronPath);
-		for (let i = 1; i < counterAdd; i++) {
-			fireNeuron(brainRoot, neuronPath);
+		// Neuron doesn't exist — grow via candidate staging
+		const candResult = growCandidate(brainRoot, neuronPath);
+		// Only fire additional times if already promoted to permanent
+		if (candResult.promoted) {
+			for (let i = 1; i < counterAdd; i++) {
+				fireNeuron(brainRoot, neuronPath);
+			}
 		}
 	}
 

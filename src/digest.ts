@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { MAX_CORRECTIONS_PER_SESSION, MIN_CORRECTION_LENGTH, DIGEST_LOG_DIR } from './constants';
-import { growNeuron } from './grow';
+import { growCandidate } from './candidates';
 import { logEpisode } from './episode';
 // tokenize() not used here — digest uses its own unstemmed split for readable names.
 // tokenize() with stemming is for Jaccard similarity in grow.ts.
@@ -132,13 +132,13 @@ export function digestTranscript(brainRoot: string, transcriptPath: string, sess
 		return { corrections: 0, skipped: messages.length, transcriptPath, sessionId: resolvedSessionId };
 	}
 
-	// Apply corrections via growNeuron (handles Jaccard dedup internally)
+	// Apply corrections via candidate staging — counter >= 3 auto-promotes
 	let applied = 0;
 	const auditEntries: Array<{ correction: ExtractedCorrection; applied: boolean }> = [];
 
 	for (const correction of corrections) {
 		try {
-			growNeuron(brainRoot, correction.path);
+			growCandidate(brainRoot, correction.path);
 			logEpisode(brainRoot, 'digest', correction.path, correction.text);
 			auditEntries.push({ correction, applied: true });
 			applied++;

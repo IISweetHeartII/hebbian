@@ -34,6 +34,13 @@ export { digestTranscript, extractCorrections, readHookInput } from './digest';
 export type { DigestResult, ExtractedCorrection } from './digest';
 export { resolveBrainRoot } from './constants';
 
-// Phase 4: Evolve Engine
+// Phase 4: Candidate Staging + Evolve Engine
+export { growCandidate, promoteCandidates, listCandidates, toCandidatePath, fromCandidatePath } from './candidates';
+export type { CandidateInfo, PromoteResult } from './candidates';
 export { runEvolve } from './evolve';
 export type { EvolveAction, EvolveResult } from './evolve';
+
+// Phase 5: Outcome Tracking
+export { captureSessionStart, detectOutcome, buildOutcomeSummary, classifyOutcome } from './outcome';
+export type { SessionState, OutcomeResult } from './outcome';
+export { contraNeuron } from './fire';

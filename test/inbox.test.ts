@@ -26,14 +26,16 @@ describe('inbox processing', () => {
 		expect(result.processed).toBe(0);
 	});
 
-	it('grows new neuron from correction', () => {
+	it('grows new neuron as candidate (not permanent) from correction', () => {
 		const { root } = setupTestBrain();
 		writeInbox(root, [
 			JSON.stringify({ ts: new Date().toISOString(), type: 'correction', text: 'test', path: 'cortex/new_rule', counter_add: 1, author: 'user' }),
 		]);
 		const result = processInbox(root);
 		expect(result.processed).toBe(1);
-		expect(existsSync(join(root, 'cortex/new_rule'))).toBe(true);
+		// New neurons go to _candidates/ — not directly to the region
+		expect(existsSync(join(root, 'cortex/_candidates/new_rule'))).toBe(true);
+		expect(existsSync(join(root, 'cortex/new_rule'))).toBe(false);
 	});
 
 	it('fires existing neuron from correction', () => {
