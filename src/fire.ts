@@ -37,6 +37,46 @@ export function fireNeuron(brainRoot: string, neuronPath: string): number {
 }
 
 /**
+ * Increment a neuron's contra (inhibitory) counter by 1.
+ * Creates 1.contra if none exists, renames N.contra → (N+1).contra otherwise.
+ * If the neuron directory doesn't exist, returns 0 (don't auto-create).
+ */
+export function contraNeuron(brainRoot: string, neuronPath: string): number {
+	const fullPath = join(brainRoot, neuronPath);
+
+	if (!existsSync(fullPath)) {
+		return 0;
+	}
+
+	const current = getCurrentContra(fullPath);
+	const newContra = current + 1;
+
+	if (current > 0) {
+		renameSync(join(fullPath, `${current}.contra`), join(fullPath, `${newContra}.contra`));
+	} else {
+		writeFileSync(join(fullPath, `${newContra}.contra`), '', 'utf8');
+	}
+
+	return newContra;
+}
+
+/**
+ * Get current contra value from the highest N.contra file.
+ */
+export function getCurrentContra(dir: string): number {
+	let max = 0;
+	try {
+		for (const entry of readdirSync(dir)) {
+			if (entry.endsWith('.contra')) {
+				const n = parseInt(entry, 10);
+				if (!isNaN(n) && n > max) max = n;
+			}
+		}
+	} catch {}
+	return max;
+}
+
+/**
  * Get current counter value from the highest N.neuron file.
  */
 export function getCurrentCounter(dir: string): number {

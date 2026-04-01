@@ -77,6 +77,12 @@ export const MAX_CORRECTIONS_PER_SESSION = 10;
 export const MIN_CORRECTION_LENGTH = 15;
 export const DIGEST_LOG_DIR = 'hippocampus/digest_log';
 
+// Phase 5: Outcome tracking
+export const OUTCOME_TYPES = ['revert', 'acceptance'] as const;
+export type OutcomeType = (typeof OUTCOME_TYPES)[number];
+export const SESSION_STATE_DIR = 'hippocampus/session_state';
+export const PROTECTED_REGIONS_CONTRA = ['brainstem', 'limbic', 'sensors'];
+
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 

@@ -16,13 +16,21 @@ export interface Episode {
 	type: string;
 	path: string;
 	detail: string;
+	outcome?: 'revert' | 'acceptance';
+	neurons?: string[];
 }
 
 /**
  * Log an episode to the hippocampus session log.
  * Circular buffer — writes to memoryN.neuron, wraps at MAX_EPISODES.
  */
-export function logEpisode(brainRoot: string, type: string, path: string, detail: string): void {
+export function logEpisode(
+	brainRoot: string,
+	type: string,
+	path: string,
+	detail: string,
+	extra?: { outcome?: Episode['outcome']; neurons?: string[] },
+): void {
 	const logDir = join(brainRoot, SESSION_LOG_DIR);
 	if (!existsSync(logDir)) {
 		mkdirSync(logDir, { recursive: true });
@@ -34,6 +42,8 @@ export function logEpisode(brainRoot: string, type: string, path: string, detail
 		type,
 		path,
 		detail,
+		...(extra?.outcome ? { outcome: extra.outcome } : {}),
+		...(extra?.neurons ? { neurons: extra.neurons } : {}),
 	};
 
 	writeFileSync(
