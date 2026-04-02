@@ -30,8 +30,8 @@ export type { Correction, InboxResult } from './inbox';
 // WS1: Claude Code Hooks + Digest
 export { installHooks, uninstallHooks, checkHooks } from './hooks';
 export type { HookStatus } from './hooks';
-export { digestTranscript, extractCorrections, readHookInput } from './digest';
-export type { DigestResult, ExtractedCorrection } from './digest';
+export { digestTranscript, extractCorrections, readHookInput, parseToolResults, detectToolFailure } from './digest';
+export type { DigestResult, ExtractedCorrection, ToolFailure } from './digest';
 export { resolveBrainRoot } from './constants';
 
 // Phase 4: Candidate Staging + Evolve Engine

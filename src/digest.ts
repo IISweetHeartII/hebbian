@@ -18,6 +18,7 @@ import { logEpisode } from './episode';
 export interface DigestResult {
 	corrections: number;
 	skipped: number;
+	toolFailures: number;
 	transcriptPath: string;
 	sessionId: string;
 }
@@ -33,10 +34,21 @@ interface TranscriptLine {
 	type?: string;
 	message?: {
 		role?: string;
-		content?: string | Array<{ type: string; text?: string }>;
+		content?: string | Array<{ type: string; text?: string; tool_use_id?: string; is_error?: boolean }>;
+	};
+	toolUseResult?: {
+		stdout?: string;
+		stderr?: string;
+		status?: string;
 	};
 	sessionId?: string;
 	uuid?: string;
+}
+
+export interface ToolFailure {
+	toolName: string;
+	exitCode: number;
+	errorText: string;
 }
 
 // Negation patterns — user is telling the AI NOT to do something
@@ -117,20 +129,35 @@ export function digestTranscript(brainRoot: string, transcriptPath: string, sess
 	const logPath = join(logDir, `${resolvedSessionId}.jsonl`);
 	if (existsSync(logPath)) {
 		console.log(`\u23ED already digested session ${resolvedSessionId}, skip`);
-		return { corrections: 0, skipped: 0, transcriptPath, sessionId: resolvedSessionId };
+		return { corrections: 0, skipped: 0, toolFailures: 0, transcriptPath, sessionId: resolvedSessionId };
 	}
 
-	// Parse transcript
+	// Parse transcript — user messages for corrections
 	const messages = parseTranscript(transcriptPath);
+
+	// Parse tool results — detect failures (language-independent self-learning)
+	const toolFailures = parseToolResults(transcriptPath);
+	for (const failure of toolFailures) {
+		logEpisode(brainRoot, 'tool-failure', failure.toolName, failure.errorText);
+	}
+	if (toolFailures.length > 0) {
+		console.log(`🔧 digest: ${toolFailures.length} tool failure(s) logged as episodes`);
+	}
 
 	// Extract corrections
 	const corrections = extractCorrections(messages);
 
-	if (corrections.length === 0) {
+	if (corrections.length === 0 && toolFailures.length === 0) {
 		console.log(`\uD83D\uDCDD digest: no corrections found in session ${resolvedSessionId}`);
 		// Write empty audit log to mark as digested
 		writeAuditLog(brainRoot, resolvedSessionId, []);
-		return { corrections: 0, skipped: messages.length, transcriptPath, sessionId: resolvedSessionId };
+		return { corrections: 0, skipped: messages.length, toolFailures: toolFailures.length, transcriptPath, sessionId: resolvedSessionId };
+	}
+
+	if (corrections.length === 0) {
+		// Tool failures logged but no user corrections — still mark as digested
+		writeAuditLog(brainRoot, resolvedSessionId, []);
+		return { corrections: 0, skipped: messages.length, toolFailures: toolFailures.length, transcriptPath, sessionId: resolvedSessionId };
 	}
 
 	// Apply corrections via candidate staging — counter >= 3 auto-promotes
@@ -156,6 +183,7 @@ export function digestTranscript(brainRoot: string, transcriptPath: string, sess
 	return {
 		corrections: applied,
 		skipped: messages.length - corrections.length,
+		toolFailures: toolFailures.length,
 		transcriptPath,
 		sessionId: resolvedSessionId,
 	};
@@ -202,6 +230,83 @@ function extractText(content: string | Array<{ type: string; text?: string }> | 
 		return texts.length > 0 ? texts.join('\n') : null;
 	}
 	return null;
+}
+
+// --- Tool Failure Detection (language-independent self-learning) ---
+
+const MAX_FAILURES_PER_SESSION = 20;
+
+/**
+ * Parse tool_result blocks from a Claude Code transcript.
+ * Returns detected failures (exit code ≠ 0, is_error = true).
+ */
+export function parseToolResults(transcriptPath: string): ToolFailure[] {
+	const content = readFileSync(transcriptPath, 'utf8');
+	const lines = content.split('\n').filter(Boolean);
+	const failures: ToolFailure[] = [];
+
+	for (const line of lines) {
+		if (failures.length >= MAX_FAILURES_PER_SESSION) break;
+
+		let entry: TranscriptLine;
+		try {
+			entry = JSON.parse(line);
+		} catch {
+			continue;
+		}
+
+		if (entry.type !== 'user') continue;
+		if (!entry.message || !Array.isArray(entry.message.content)) continue;
+
+		for (const block of entry.message.content) {
+			if (block.type !== 'tool_result') continue;
+			if (!block.is_error) continue;
+
+			const failure = detectToolFailure(block, entry.toolUseResult);
+			if (failure) failures.push(failure);
+		}
+	}
+
+	return failures;
+}
+
+/**
+ * Detect a tool failure from a tool_result block.
+ * Returns failure info if exit code ≠ 0, null otherwise.
+ */
+export function detectToolFailure(
+	block: { content?: string | Array<{ type: string; text?: string }>; is_error?: boolean },
+	toolUseResult?: TranscriptLine['toolUseResult'],
+): ToolFailure | null {
+	if (!block.is_error) return null;
+
+	// Extract error text from block content
+	let errorText = '';
+	if (typeof block.content === 'string') {
+		errorText = block.content;
+	} else if (Array.isArray(block.content)) {
+		errorText = block.content
+			.filter((b) => b.type === 'text' && b.text)
+			.map((b) => b.text!)
+			.join('\n');
+	}
+
+	// Also check toolUseResult string format
+	if (!errorText && typeof toolUseResult === 'string') {
+		errorText = toolUseResult as string;
+	}
+
+	if (!errorText) return null;
+
+	// Parse exit code from "Exit code N\n..." format
+	const exitMatch = errorText.match(/^Exit code (\d+)/);
+	const exitCode = exitMatch ? parseInt(exitMatch[1]!, 10) : 1;
+
+	// Extract a short tool name from the error (first meaningful line)
+	const firstLine = errorText.split('\n').find((l) => l.trim() && !l.startsWith('Exit code')) || 'unknown';
+	const toolName = firstLine.trim().slice(0, 80);
+
+	return { toolName, exitCode, errorText: errorText.slice(0, 500) };
 }
 
 /**

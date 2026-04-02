@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 (2026-04-02)
+
+The brain that learns from failure — no words needed.
+
+### Added
+- **Tool failure detection** — digest now scans tool_result blocks in Claude Code transcripts for `is_error: true` and exit codes. Failed bash commands, pre-commit hook errors, build failures are automatically logged as `tool-failure` episodes. Language-independent — a failed command is a failed command in any language.
+- `parseToolResults()` and `detectToolFailure()` exported from public API
+- `DigestResult.toolFailures` count field
+
+### Changed
+- `digestTranscript()` now runs two passes: user corrections (existing) + tool failures (new). Both feed into the episode log for evolve to analyze.
+
 ## 0.5.3 (2026-04-02)
 
 Further false positive reduction in digest.
