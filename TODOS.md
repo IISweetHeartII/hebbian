@@ -1,26 +1,19 @@
 # TODOS
 
-## Multi-provider LLM support for evolve
+## Multi-provider LLM support for evolve (optional)
 
 Currently evolve only supports Gemini API. Add Groq, OpenAI, Anthropic, and Ollama (local).
 Provider detection priority: OLLAMA (localhost, no key) > GROQ > OPENAI > ANTHROPIC > GEMINI.
 
-**Priority:** Medium. Gemini works but limits user choice.
+**Priority:** Low (downgraded from Medium). Self-learning now works without any API key
+via agent-as-evaluator (v0.10.0). Evolve is an optional power feature.
 **Depends on:** Phase 4.1 (evolve engine exists)
 **Source:** Eng review decision (2026-04-01)
 
-## Digest false positive reduction
+## ~~Digest false positive reduction~~ ✅ Done (v0.9.0)
 
-Current correction detection fires on loose markers like "instead", "avoid", "않" (Korean)
-in normal conversation. Long informational messages get incorrectly flagged as corrections.
-
-**What it would do:** Add minimum confidence scoring — require 2+ correction markers
-in the same message, or minimum keyword density relative to message length.
-
-**Priority:** Medium. Candidate staging (Phase 4.2) is the safety net, but it doesn't
-exist yet. Until then, false positives create noise neurons.
-**Depends on:** Nothing (independent improvement)
-**Source:** Codex outside voice finding during eng review (2026-04-01)
+Fixed in v0.9.0: Korean narrative filter, multi-signal requirement for Korean-heavy text,
+tightened negation patterns (require imperative verb objects), expanded question/XML filters.
 
 ## Mid-session re-emit hook
 

@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript" />
   <img src="https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js" />
   <img src="https://img.shields.io/badge/Runtime_Deps-0-brightgreen?style=flat-square" />
-  <img src="https://img.shields.io/badge/Tests-317-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Tests-339-blue?style=flat-square" />
   <img src="https://img.shields.io/badge/MIT-green?style=flat-square" />
 </p>
 
@@ -35,19 +35,20 @@ you: don't use console.log, always use the logger utility
 ```
 
 ```bash
-# 3. End the session (hooks auto-run hebbian digest)
-# Check what hebbian learned:
+# 3. End the session (hooks auto-run)
+#    → hebbian digest extracts the correction → creates candidate
+#    → agent-evaluator auto-fires candidates (no corrections = +1)
+
 hebbian candidates
-#   ░░█  1/3  cortex/NO_console_log  (0d idle)
+#   █░░  1/3  cortex/NO_console_log  (0d idle)
 
-# 4. After 2 more corrections, it graduates:
-#   🎓 promoted: cortex/_candidates/NO_console_log → cortex/NO_console_log
+# 4. After 2 more clean sessions, it graduates automatically:
+#   🎓 promoted: cortex/NO_console_log → permanent neuron
 
-# 5. Next session — Claude sees the rule in CLAUDE.md:
-#   ❌ NO console.log → use logger utility
+# 5. Next session — Claude sees the rule in CLAUDE.md
 ```
 
-**That's it.** One correction, hebbian learns. Three confirmations, it becomes permanent.
+**That's it.** One correction → candidate. Three clean sessions → permanent. **No API keys needed.**
 
 ---
 
@@ -59,7 +60,7 @@ hebbian candidates
 npx hebbian init ./brain
 npx hebbian grow brainstem/禁fallback --brain ./brain
 npx hebbian emit claude --brain ./brain    # → CLAUDE.md
-npx hebbian evolve --dry-run               # → LLM proposes brain mutations
+npx hebbian evolve --dry-run               # → (optional) LLM proposes brain mutations
 ```
 
 | Before | hebbian |
@@ -79,16 +80,17 @@ npx hebbian evolve --dry-run               # → LLM proposes brain mutations
 ```
 Claude Code session
         │
-  SessionStart hook        Stop hook
-        │                      │
-   hebbian emit           hebbian digest
-        │                      │
-   CLAUDE.md ←── brain ──→ _candidates/
-                    │              │
-              hebbian evolve   3 confirmations
-                    │              │
-              LLM proposes    permanent neuron
-              grow/fire/prune
+  SessionStart hook               Stop hook
+        │                              │
+   hebbian emit                   hebbian digest
+        │                              │
+   CLAUDE.md ←── brain ──→ corrections → _candidates/
+        │                                      │
+   "Provisional Rules"              agent-evaluator:
+   (candidates shown to agent)      clean session → fire (+1)
+                                    3 fires → permanent neuron
+
+   No API keys. The running agent IS the evaluator.
 ```
 
 ### Candidate Staging (immune system)
@@ -103,6 +105,7 @@ brain/cortex/NO_console_log/3.neuron               ← permanent
 ```
 
 - Counter >= 3 → graduates to permanent region
+- Each clean session (no corrections) auto-fires all candidates (+1)
 - 14 days without a fire → decays (removed)
 - This prevents hallucinations and one-off corrections from permanently changing behavior
 
@@ -146,8 +149,8 @@ This adds two hooks to `.claude/settings.local.json`:
 
 | Hook | Command | When |
 |------|---------|------|
-| `SessionStart` | `hebbian emit claude` | Injects brain into CLAUDE.md |
-| `Stop` | `hebbian digest` | Extracts corrections from conversation |
+| `SessionStart` | `hebbian emit claude` | Injects brain + provisional rules into CLAUDE.md |
+| `Stop` | `hebbian digest` | Extracts corrections, detects tool failures, auto-fires candidates |
 
 Check status anytime:
 
@@ -165,7 +168,7 @@ hebbian automatically learns from failed commands — no explicit correction nee
 ```bash
 # During a session, a bash command fails (exit code ≠ 0)
 # → hebbian digest auto-logs it as a tool-failure episode
-# → evolve sees the pattern and proposes inhibitory neurons
+# Soft detection: even || true masked errors are caught (command not found, npm error, fatal:)
 
 hebbian sessions   # see tool-failure episodes in the log
 ```
@@ -193,7 +196,9 @@ hebbian grow cortex/OTHER_RULE --agent coo --brain ./brain
 
 ---
 
-## LLM Evolution
+## LLM Evolution (optional)
+
+> **Note:** Self-learning works without this. The agent-as-evaluator loop (digest → candidates → auto-fire) requires zero API keys. LLM evolve is an optional power feature for advanced brain mutations.
 
 ```bash
 GEMINI_API_KEY=... hebbian evolve --dry-run --brain ./brain
@@ -204,9 +209,7 @@ GEMINI_API_KEY=... hebbian evolve prune --dry-run --brain ./brain
 
 The evolve engine reads the last 100 episodes + current brain state, sends it to Gemini, and proposes up to 10 mutations per cycle. Protected regions (brainstem/limbic/sensors) are blocked.
 
-Actions it can take: `grow` (new neuron), `fire` (strengthen), `signal` (dopamine/bomb), `prune` (weaken), `decay` (mark dormant).
-
-**Pruning mode** uses a cleanup-focused prompt that only removes: stale neurons (30+ days inactive), high contra ratio (>0.7), redundant duplicates. Run nightly via cron.
+Actions: `grow`, `fire`, `signal`, `prune`, `decay`. **Pruning mode** removes stale neurons (30+ days inactive), high contra ratio (>0.7), redundant duplicates.
 
 ---
 
@@ -238,9 +241,9 @@ hebbian emit <target> [--brain <path>]  # claude/cursor/gemini/copilot/generic/a
 hebbian claude install|uninstall|status
 hebbian digest [--transcript <path>]
 
-# Evolution
+# Evolution (optional — self-learning works without this)
 GEMINI_API_KEY=... hebbian evolve [--dry-run]
-GEMINI_API_KEY=... hebbian evolve prune [--dry-run]   # Pruning mode (청소부)
+GEMINI_API_KEY=... hebbian evolve prune [--dry-run]
 
 # Multi-brain (per-agent)
 hebbian grow cortex/RULE --agent cto     # Routes to brain/agents/cto/
@@ -264,7 +267,7 @@ hebbian emit claude --agent coo          # Emits from brain/agents/coo/
 
 | Feature | .cursorrules / CLAUDE.md | Mem0 / MemOS | hebbian |
 |---------|--------------------------|-------------|------|
-| Self-learning | ❌ manual | ✅ vector DB | ✅ filesystem + tool failures |
+| Self-learning | ❌ manual | ✅ vector DB | ✅ filesystem + agent-evaluator (no API key) |
 | Infrastructure | $0 | $$$ | **$0** |
 | Switch AI | Manual migration | Full re-setup | **`cp -r brain/`** |
 | Immutable guardrails | None | None | **brainstem + bomb** |

@@ -55,8 +55,8 @@ COMMANDS:
   claude install|uninstall|status Manage Claude Code hooks
   digest [--transcript <path>]    Extract corrections from conversation
   candidates [promote]            List candidates or promote graduated ones
-  evolve [--dry-run]              LLM-powered brain evolution (Gemini)
-  evolve prune [--dry-run]        Pruning mode — remove stale/redundant neurons
+  evolve [--dry-run]              (optional) LLM-powered evolution (Gemini)
+  evolve prune [--dry-run]        (optional) Pruning mode — remove stale neurons
   session start|end               Capture/detect session outcomes
   sessions                        Show session outcome history
   doctor                          Self-diagnostic (hooks, brain, versions)
@@ -74,7 +74,7 @@ EXAMPLES:
   hebbian fire cortex/frontend/NO_console_log --brain ./my-brain
   hebbian emit claude --brain ./my-brain
   hebbian emit all
-  GEMINI_API_KEY=... hebbian evolve --dry-run
+  GEMINI_API_KEY=... hebbian evolve --dry-run   # optional — self-learning works without this
 `.trim();
 
 /** Read all data from stdin (non-blocking, returns empty string if no data). */
