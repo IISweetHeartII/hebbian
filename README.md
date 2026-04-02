@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?style=flat-square&logo=typescript" />
   <img src="https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=node.js" />
   <img src="https://img.shields.io/badge/Runtime_Deps-0-brightgreen?style=flat-square" />
-  <img src="https://img.shields.io/badge/Tests-277-blue?style=flat-square" />
+  <img src="https://img.shields.io/badge/Tests-317-blue?style=flat-square" />
   <img src="https://img.shields.io/badge/MIT-green?style=flat-square" />
 </p>
 
@@ -158,15 +158,55 @@ hebbian doctor       # full diagnostic
 
 ---
 
+## Tool Failure Detection (v0.6.0+)
+
+hebbian automatically learns from failed commands — no explicit correction needed:
+
+```bash
+# During a session, a bash command fails (exit code ≠ 0)
+# → hebbian digest auto-logs it as a tool-failure episode
+# → evolve sees the pattern and proposes inhibitory neurons
+
+hebbian sessions   # see tool-failure episodes in the log
+```
+
+Retry patterns (same error 3+ times) are flagged separately as `retry-pattern` episodes.
+
+---
+
+## Multi-Brain (v0.7.0+)
+
+Per-agent brains for multi-agent setups:
+
+```bash
+# Individual brain for each agent
+hebbian grow cortex/SOME_RULE --agent cto --brain ./brain
+hebbian grow cortex/OTHER_RULE --agent coo --brain ./brain
+
+# Results in:
+# brain/agents/cto/cortex/SOME_RULE/
+# brain/agents/coo/cortex/OTHER_RULE/
+
+# Shared brain (cross-cutting knowledge)
+# brain/shared/cortex/...
+```
+
+---
+
 ## LLM Evolution
 
 ```bash
 GEMINI_API_KEY=... hebbian evolve --dry-run --brain ./brain
+
+# Pruning mode (nightly cleaner — remove stale/redundant neurons)
+GEMINI_API_KEY=... hebbian evolve prune --dry-run --brain ./brain
 ```
 
 The evolve engine reads the last 100 episodes + current brain state, sends it to Gemini, and proposes up to 10 mutations per cycle. Protected regions (brainstem/limbic/sensors) are blocked.
 
 Actions it can take: `grow` (new neuron), `fire` (strengthen), `signal` (dopamine/bomb), `prune` (weaken), `decay` (mark dormant).
+
+**Pruning mode** uses a cleanup-focused prompt that only removes: stale neurons (30+ days inactive), high contra ratio (>0.7), redundant duplicates. Run nightly via cron.
 
 ---
 
@@ -200,6 +240,11 @@ hebbian digest [--transcript <path>]
 
 # Evolution
 GEMINI_API_KEY=... hebbian evolve [--dry-run]
+GEMINI_API_KEY=... hebbian evolve prune [--dry-run]   # Pruning mode (청소부)
+
+# Multi-brain (per-agent)
+hebbian grow cortex/RULE --agent cto     # Routes to brain/agents/cto/
+hebbian emit claude --agent coo          # Emits from brain/agents/coo/
 ```
 
 ### Emit Targets
@@ -219,7 +264,7 @@ GEMINI_API_KEY=... hebbian evolve [--dry-run]
 
 | Feature | .cursorrules / CLAUDE.md | Mem0 / MemOS | hebbian |
 |---------|--------------------------|-------------|------|
-| Self-learning | ❌ manual | ✅ vector DB | ✅ filesystem |
+| Self-learning | ❌ manual | ✅ vector DB | ✅ filesystem + tool failures |
 | Infrastructure | $0 | $$$ | **$0** |
 | Switch AI | Manual migration | Full re-setup | **`cp -r brain/`** |
 | Immutable guardrails | None | None | **brainstem + bomb** |

@@ -8,6 +8,7 @@ import { rollbackNeuron } from '../src/rollback';
 import { signalNeuron } from '../src/signal';
 import { growNeuron } from '../src/grow';
 import { runDecay } from '../src/decay';
+import { resolveAgentBrain, resolveSharedBrain } from '../src/constants';
 
 describe('fireNeuron', () => {
 	it('increments counter from 40 to 41', () => {
@@ -154,5 +155,39 @@ describe('runDecay', () => {
 		// All neurons were just created (mtime = now)
 		const { decayed } = runDecay(root, 30);
 		expect(decayed).toBe(0);
+	});
+});
+
+describe('multi-brain (agent + shared)', () => {
+	it('resolveAgentBrain returns brain/agents/{name}/', () => {
+		const result = resolveAgentBrain('/tmp/brain', 'cto');
+		expect(result).toContain('agents');
+		expect(result).toContain('cto');
+	});
+
+	it('resolveSharedBrain returns brain/shared/', () => {
+		const result = resolveSharedBrain('/tmp/brain');
+		expect(result).toContain('shared');
+	});
+
+	it('agent brain can grow neurons independently', () => {
+		const { root } = setupTestBrain();
+		const agentRoot = resolveAgentBrain(root, 'cto');
+
+		// Init the agent brain regions
+		mkdirSync(join(agentRoot, 'cortex'), { recursive: true });
+
+		// Grow a neuron in agent brain
+		growNeuron(agentRoot, 'cortex/TEST_AGENT_RULE');
+		expect(existsSync(join(agentRoot, 'cortex', 'TEST_AGENT_RULE', '1.neuron'))).toBe(true);
+
+		// Main brain should NOT have this neuron
+		expect(existsSync(join(root, 'cortex', 'TEST_AGENT_RULE'))).toBe(false);
+	});
+
+	it('path traversal blocked in growNeuron', () => {
+		const { root } = setupTestBrain();
+		expect(() => growNeuron(root, 'cortex/../../etc/passwd')).toThrow('path traversal');
+		expect(() => growNeuron(root, '/etc/passwd')).toThrow('path traversal');
 	});
 });

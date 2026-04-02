@@ -3,7 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { setupTestBrain } from './fixtures/setup';
-import { digestTranscript, extractCorrections, readHookInput } from '../src/digest';
+import { digestTranscript, extractCorrections, readHookInput, parseToolResults, detectToolFailure, detectRetryPatterns } from '../src/digest';
+import type { ToolFailure } from '../src/digest';
 
 function makeTempDir(): string {
 	return mkdtempSync(join(tmpdir(), 'hebb-digest-'));
@@ -445,5 +446,181 @@ describe('digestTranscript', () => {
 
 		const logPath = join(root, 'hippocampus', 'digest_log', 'empty-test.jsonl');
 		expect(existsSync(logPath)).toBe(true); // dedup marker
+	});
+
+	it('detects tool failures from is_error tool_result blocks', () => {
+		const { root } = setupTestBrain();
+		const dir = makeTempDir();
+		const transcript = writeToolFailureTranscript(dir, [
+			{ exitCode: 1, error: 'npm test failed\nError: test suite broken' },
+			{ exitCode: 127, error: 'command not found: foo' },
+		], 'tool-fail-test');
+
+		const result = digestTranscript(root, transcript, 'tool-fail-test');
+		expect(result.toolFailures).toBe(2);
+	});
+
+	it('logs tool failures as episodes even without user corrections', () => {
+		const { root } = setupTestBrain();
+		const dir = makeTempDir();
+		const transcript = writeToolFailureTranscript(dir, [
+			{ exitCode: 1, error: 'build failed' },
+		], 'tool-episode-test');
+
+		digestTranscript(root, transcript, 'tool-episode-test');
+
+		// Check episode was logged
+		const { readdirSync: lsDir } = require('node:fs') as typeof import('node:fs');
+		const episodes = lsDir(join(root, 'hippocampus', 'session_log'));
+		const hasToolFailure = episodes.some((f: string) => {
+			if (!f.endsWith('.neuron')) return false;
+			const content = readFileSync(join(root, 'hippocampus', 'session_log', f), 'utf8');
+			try { return JSON.parse(content).type === 'tool-failure'; } catch { return false; }
+		});
+		expect(hasToolFailure).toBe(true);
+	});
+});
+
+// --- Tool Failure Detection Tests ---
+
+/** Helper: create a transcript with tool_result error blocks */
+function writeToolFailureTranscript(
+	dir: string,
+	failures: Array<{ exitCode: number; error: string }>,
+	sessionId = 'tool-test',
+): string {
+	const path = join(dir, `${sessionId}.jsonl`);
+	const lines: string[] = [];
+
+	for (const f of failures) {
+		lines.push(JSON.stringify({
+			type: 'user',
+			message: {
+				role: 'user',
+				content: [{
+					type: 'tool_result',
+					tool_use_id: `toolu_${Math.random().toString(36).slice(2)}`,
+					is_error: true,
+					content: `Exit code ${f.exitCode}\n${f.error}`,
+				}],
+			},
+			toolUseResult: `Error: Exit code ${f.exitCode}\n${f.error}`,
+			uuid: `msg-${Math.random().toString(36).slice(2)}`,
+		}));
+	}
+
+	writeFileSync(path, lines.join('\n'), 'utf8');
+	return path;
+}
+
+describe('parseToolResults', () => {
+	it('extracts failures from tool_result blocks with is_error', () => {
+		const dir = makeTempDir();
+		const path = writeToolFailureTranscript(dir, [
+			{ exitCode: 1, error: 'pre-commit hook failed' },
+			{ exitCode: 127, error: 'command not found' },
+		]);
+
+		const failures = parseToolResults(path);
+		expect(failures).toHaveLength(2);
+		expect(failures[0]!.exitCode).toBe(1);
+		expect(failures[1]!.exitCode).toBe(127);
+	});
+
+	it('ignores successful tool_results (no is_error)', () => {
+		const dir = makeTempDir();
+		const path = join(dir, 'success.jsonl');
+		writeFileSync(path, JSON.stringify({
+			type: 'user',
+			message: {
+				role: 'user',
+				content: [{
+					type: 'tool_result',
+					tool_use_id: 'toolu_ok',
+					is_error: false,
+					content: 'Success',
+				}],
+			},
+			uuid: 'msg-ok',
+		}), 'utf8');
+
+		const failures = parseToolResults(path);
+		expect(failures).toHaveLength(0);
+	});
+
+	it('caps at MAX_FAILURES_PER_SESSION', () => {
+		const dir = makeTempDir();
+		const many = Array.from({ length: 30 }, (_, i) => ({ exitCode: 1, error: `err ${i}` }));
+		const path = writeToolFailureTranscript(dir, many);
+
+		const failures = parseToolResults(path);
+		expect(failures.length).toBeLessThanOrEqual(20);
+	});
+});
+
+describe('detectToolFailure', () => {
+	it('extracts exit code from "Exit code N" format', () => {
+		const result = detectToolFailure(
+			{ content: 'Exit code 127\ncommand not found: foo', is_error: true },
+		);
+		expect(result).not.toBeNull();
+		expect(result!.exitCode).toBe(127);
+	});
+
+	it('returns null for non-error blocks', () => {
+		const result = detectToolFailure(
+			{ content: 'all good', is_error: false },
+		);
+		expect(result).toBeNull();
+	});
+
+	it('handles content block array format', () => {
+		const result = detectToolFailure(
+			{ content: [{ type: 'text', text: 'Exit code 1\nbuild failed' }], is_error: true },
+		);
+		expect(result).not.toBeNull();
+		expect(result!.exitCode).toBe(1);
+	});
+
+	it('defaults exit code to 1 when not parseable', () => {
+		const result = detectToolFailure(
+			{ content: 'Some error without exit code marker', is_error: true },
+		);
+		expect(result).not.toBeNull();
+		expect(result!.exitCode).toBe(1);
+	});
+});
+
+describe('detectRetryPatterns', () => {
+	it('detects same error 3+ times as retry pattern', () => {
+		const failures: ToolFailure[] = [
+			{ toolName: 'npm install', exitCode: 1, errorText: 'ERR' },
+			{ toolName: 'npm install', exitCode: 1, errorText: 'ERR' },
+			{ toolName: 'npm install', exitCode: 1, errorText: 'ERR' },
+		];
+		const retries = detectRetryPatterns(failures);
+		expect(retries).toHaveLength(1);
+		expect(retries[0]!.toolName).toContain('retry x3');
+	});
+
+	it('does not flag less than 3 occurrences', () => {
+		const failures: ToolFailure[] = [
+			{ toolName: 'npm install', exitCode: 1, errorText: 'ERR' },
+			{ toolName: 'npm install', exitCode: 1, errorText: 'ERR' },
+		];
+		const retries = detectRetryPatterns(failures);
+		expect(retries).toHaveLength(0);
+	});
+
+	it('tracks different errors separately', () => {
+		const failures: ToolFailure[] = [
+			{ toolName: 'npm install', exitCode: 1, errorText: 'ERR' },
+			{ toolName: 'npm install', exitCode: 1, errorText: 'ERR' },
+			{ toolName: 'npm install', exitCode: 1, errorText: 'ERR' },
+			{ toolName: 'git push', exitCode: 1, errorText: 'ERR' },
+			{ toolName: 'git push', exitCode: 1, errorText: 'ERR' },
+		];
+		const retries = detectRetryPatterns(failures);
+		expect(retries).toHaveLength(1); // only npm install (3x), not git push (2x)
 	});
 });
