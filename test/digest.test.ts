@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { setupTestBrain } from './fixtures/setup';
-import { digestTranscript, extractCorrections, readHookInput, parseToolResults, detectToolFailure, detectRetryPatterns } from '../src/digest';
+import { digestTranscript, extractCorrections, readHookInput, parseToolResults, detectToolFailure, detectSoftFailure, detectRetryPatterns } from '../src/digest';
 import type { ToolFailure } from '../src/digest';
 
 function makeTempDir(): string {
@@ -430,12 +430,16 @@ describe('digestTranscript', () => {
 		// Should have created a neuron under cortex/
 		const logPath = join(root, 'hippocampus', 'digest_log', 'grow-test.jsonl');
 		const log = readFileSync(logPath, 'utf8');
-		const entry = JSON.parse(log.trim().split('\n')[0]!);
+		const logLines = log.trim().split('\n');
+		// First line is _meta, correction entries follow
+		const meta = JSON.parse(logLines[0]!);
+		expect(meta._meta).toBe(true);
+		const entry = JSON.parse(logLines[1]!);
 		expect(entry.path).toMatch(/^cortex\//);
 		expect(entry.applied).toBe(true);
 	});
 
-	it('writes empty audit log when no corrections found', () => {
+	it('writes audit log with _meta even when no corrections found', () => {
 		const { root } = setupTestBrain();
 		const dir = makeTempDir();
 		const transcript = writeTranscript(dir, [
@@ -445,7 +449,10 @@ describe('digestTranscript', () => {
 		digestTranscript(root, transcript, 'empty-test');
 
 		const logPath = join(root, 'hippocampus', 'digest_log', 'empty-test.jsonl');
-		expect(existsSync(logPath)).toBe(true); // dedup marker
+		expect(existsSync(logPath)).toBe(true);
+		const meta = JSON.parse(readFileSync(logPath, 'utf8').split('\n')[0]!);
+		expect(meta._meta).toBe(true);
+		expect(typeof meta.lineCount).toBe('number');
 	});
 
 	it('detects tool failures from is_error tool_result blocks', () => {
@@ -622,5 +629,265 @@ describe('detectRetryPatterns', () => {
 		];
 		const retries = detectRetryPatterns(failures);
 		expect(retries).toHaveLength(1); // only npm install (3x), not git push (2x)
+	});
+});
+
+// --- Incremental Digest Tests ---
+
+/** Append lines to a JSONL file */
+function appendToTranscript(path: string, lines: string[]): void {
+	const existing = readFileSync(path, 'utf8');
+	writeFileSync(path, existing + (existing.endsWith('\n') ? '' : '\n') + lines.join('\n') + '\n', 'utf8');
+}
+
+describe('incremental digest', () => {
+	it('picks up new tool failures added after first digest', () => {
+		const { root } = setupTestBrain();
+		const dir = makeTempDir();
+
+		// First: transcript with no failures
+		const transcript = writeTranscript(dir, ['Can you help me?'], 'incr-test');
+
+		// First digest — creates audit log with lineCount
+		const r1 = digestTranscript(root, transcript, 'incr-test');
+		expect(r1.toolFailures).toBe(0);
+
+		// Verify audit log was created
+		const logPath = join(root, 'hippocampus', 'digest_log', 'incr-test.jsonl');
+		expect(existsSync(logPath)).toBe(true);
+
+		// Now append tool failures to the transcript (session continued)
+		appendToTranscript(transcript, [
+			JSON.stringify({
+				type: 'user',
+				message: {
+					role: 'user',
+					content: [{ type: 'tool_result', tool_use_id: 'toolu_fail1', is_error: true, content: 'Exit code 127\ncommand not found: foobar' }],
+				},
+				uuid: 'msg-fail1',
+			}),
+		]);
+
+		// Second digest — should process only the new lines
+		const r2 = digestTranscript(root, transcript, 'incr-test');
+		expect(r2.toolFailures).toBe(1);
+	});
+
+	it('skips when transcript has not grown (true dedup)', () => {
+		const { root } = setupTestBrain();
+		const dir = makeTempDir();
+
+		const transcript = writeToolFailureTranscript(dir, [
+			{ exitCode: 1, error: 'build failed' },
+		], 'dedup-test');
+
+		const r1 = digestTranscript(root, transcript, 'dedup-test');
+		expect(r1.toolFailures).toBe(1);
+
+		// Second run — same transcript, no new lines
+		const r2 = digestTranscript(root, transcript, 'dedup-test');
+		expect(r2.toolFailures).toBe(0);
+	});
+
+	it('picks up new corrections added after first digest', () => {
+		const { root } = setupTestBrain();
+		const dir = makeTempDir();
+
+		const transcript = writeTranscript(dir, ['Can you help me?'], 'corr-incr');
+		digestTranscript(root, transcript, 'corr-incr');
+
+		// Append a correction
+		appendToTranscript(transcript, [
+			JSON.stringify({
+				type: 'user',
+				message: { role: 'user', content: "don't use console.log for debugging" },
+				uuid: 'msg-corr1',
+			}),
+		]);
+
+		const r2 = digestTranscript(root, transcript, 'corr-incr');
+		expect(r2.corrections).toBe(1);
+	});
+
+	it('handles multiple incremental digests correctly', () => {
+		const { root } = setupTestBrain();
+		const dir = makeTempDir();
+
+		const transcript = writeTranscript(dir, ['hello'], 'multi-incr');
+		digestTranscript(root, transcript, 'multi-incr');
+
+		// Append first failure
+		appendToTranscript(transcript, [
+			JSON.stringify({
+				type: 'user',
+				message: {
+					role: 'user',
+					content: [{ type: 'tool_result', tool_use_id: 'toolu_a', is_error: true, content: 'Exit code 1\nerror A' }],
+				},
+				uuid: 'msg-a',
+			}),
+		]);
+		const r2 = digestTranscript(root, transcript, 'multi-incr');
+		expect(r2.toolFailures).toBe(1);
+
+		// Append second failure
+		appendToTranscript(transcript, [
+			JSON.stringify({
+				type: 'user',
+				message: {
+					role: 'user',
+					content: [{ type: 'tool_result', tool_use_id: 'toolu_b', is_error: true, content: 'Exit code 2\nerror B' }],
+				},
+				uuid: 'msg-b',
+			}),
+		]);
+		const r3 = digestTranscript(root, transcript, 'multi-incr');
+		expect(r3.toolFailures).toBe(1); // only the new one
+	});
+
+	it('preserves backward compat with legacy audit logs (no _meta)', () => {
+		const { root } = setupTestBrain();
+		const dir = makeTempDir();
+
+		const transcript = writeTranscript(dir, ['hello'], 'legacy-test');
+
+		// Simulate a legacy audit log (empty file, no _meta)
+		const logDir = join(root, 'hippocampus', 'digest_log');
+		mkdirSync(logDir, { recursive: true });
+		writeFileSync(join(logDir, 'legacy-test.jsonl'), '', 'utf8');
+
+		// Should skip (legacy dedup)
+		const result = digestTranscript(root, transcript, 'legacy-test');
+		expect(result.corrections).toBe(0);
+		expect(result.toolFailures).toBe(0);
+	});
+});
+
+// --- Soft Failure Detection Tests (is_error: false but real errors) ---
+
+/** Helper: create a transcript with is_error:false tool results */
+function writeSoftFailureTranscript(
+	dir: string,
+	outputs: Array<{ content: string; stderr?: string }>,
+	sessionId = 'soft-test',
+): string {
+	const path = join(dir, `${sessionId}.jsonl`);
+	const lines: string[] = [];
+
+	for (const o of outputs) {
+		lines.push(JSON.stringify({
+			type: 'user',
+			message: {
+				role: 'user',
+				content: [{
+					type: 'tool_result',
+					tool_use_id: `toolu_${Math.random().toString(36).slice(2)}`,
+					is_error: false,
+					content: o.content,
+				}],
+			},
+			toolUseResult: {
+				stdout: o.content,
+				stderr: o.stderr || '',
+				interrupted: false,
+			},
+			uuid: `msg-${Math.random().toString(36).slice(2)}`,
+		}));
+	}
+
+	writeFileSync(path, lines.join('\n'), 'utf8');
+	return path;
+}
+
+describe('detectSoftFailure', () => {
+	it('detects "command not found" with is_error:false (|| true)', () => {
+		const result = detectSoftFailure(
+			{ content: '(eval):2: command not found: this_command_does_not_exist_12345', is_error: false },
+		);
+		expect(result).not.toBeNull();
+		expect(result!.toolName).toContain('[soft]');
+		expect(result!.toolName).toContain('command not found');
+		expect(result!.exitCode).toBe(0);
+	});
+
+	it('detects "npm error" with is_error:false', () => {
+		const result = detectSoftFailure(
+			{ content: 'npm error Missing script: "nonexistent_script"\nnpm error\nnpm error To see a list of scripts, run:', is_error: false },
+		);
+		expect(result).not.toBeNull();
+		expect(result!.toolName).toContain('npm error');
+	});
+
+	it('detects "fatal:" git errors', () => {
+		const result = detectSoftFailure(
+			{ content: 'fatal: not a git repository', is_error: false },
+		);
+		expect(result).not.toBeNull();
+		expect(result!.toolName).toContain('fatal');
+	});
+
+	it('ignores normal success output', () => {
+		const result = detectSoftFailure(
+			{ content: 'Build succeeded\n3 files compiled', is_error: false },
+		);
+		expect(result).toBeNull();
+	});
+
+	it('ignores npm warn (not npm error)', () => {
+		const result = detectSoftFailure(
+			{ content: 'npm warn publish npm auto-corrected some errors in your package.json', is_error: false },
+		);
+		expect(result).toBeNull();
+	});
+
+	it('ignores JSON API error responses', () => {
+		const result = detectSoftFailure(
+			{ content: '{"error": "API route not found"}\n{"status": 404}', is_error: false },
+		);
+		expect(result).toBeNull();
+	});
+
+	it('detects errors in stderr via toolUseResult', () => {
+		const result = detectSoftFailure(
+			{ content: '', is_error: false },
+			{ stdout: '', stderr: 'fatal: remote origin already exists.' },
+		);
+		expect(result).not.toBeNull();
+		expect(result!.toolName).toContain('fatal');
+	});
+});
+
+describe('soft failures in parseToolResults', () => {
+	it('catches command-not-found with || true in transcript', () => {
+		const dir = makeTempDir();
+		const path = writeSoftFailureTranscript(dir, [
+			{ content: '(eval):2: command not found: this_command_does_not_exist_12345\n---\nnpm error Missing script: "nonexistent_script"' },
+		]);
+
+		const failures = parseToolResults(path);
+		expect(failures.length).toBeGreaterThanOrEqual(1);
+		expect(failures.some(f => f.toolName.includes('command not found'))).toBe(true);
+	});
+
+	it('does not flag normal output as soft failure', () => {
+		const dir = makeTempDir();
+		const path = writeSoftFailureTranscript(dir, [
+			{ content: 'total 1160\n-rw-r--r-- 1 user staff 507 file.txt' },
+			{ content: 'Build succeeded! 0 errors, 2 warnings.' },
+		]);
+
+		const failures = parseToolResults(path);
+		expect(failures).toHaveLength(0);
+	});
+
+	it('integrates soft failures into digestTranscript', () => {
+		const { root } = setupTestBrain();
+		const dir = makeTempDir();
+		const path = writeSoftFailureTranscript(dir, [
+			{ content: '(eval):1: command not found: foobar' },
+		], 'soft-digest');
+
+		const result = digestTranscript(root, path, 'soft-digest');
+		expect(result.toolFailures).toBe(1);
 	});
 });

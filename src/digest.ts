@@ -9,6 +9,10 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
+
+interface AuditMeta {
+	lineCount: number;
+}
 import { MAX_CORRECTIONS_PER_SESSION, MIN_CORRECTION_LENGTH, DIGEST_LOG_DIR } from './constants';
 import { growCandidate } from './candidates';
 import { logEpisode } from './episode';
@@ -124,19 +128,31 @@ export function digestTranscript(brainRoot: string, transcriptPath: string, sess
 
 	const resolvedSessionId = sessionId || basename(transcriptPath, '.jsonl');
 
-	// Dedup check: skip if already digested
+	// Incremental digest: read transcript and check how much was already processed
 	const logDir = join(brainRoot, DIGEST_LOG_DIR);
 	const logPath = join(logDir, `${resolvedSessionId}.jsonl`);
-	if (existsSync(logPath)) {
+
+	const content = readFileSync(transcriptPath, 'utf8');
+	const allLines = content.split('\n').filter(Boolean);
+	const totalLines = allLines.length;
+
+	const meta = readAuditMeta(logPath);
+	if (existsSync(logPath) && !meta) {
+		// Legacy audit log without _meta — preserve old dedup behavior
 		console.log(`\u23ED already digested session ${resolvedSessionId}, skip`);
 		return { corrections: 0, skipped: 0, toolFailures: 0, transcriptPath, sessionId: resolvedSessionId };
 	}
+	const skipLines = meta ? meta.lineCount : 0;
+	if (skipLines >= totalLines) {
+		// True dedup — transcript hasn't grown since last digest
+		return { corrections: 0, skipped: 0, toolFailures: 0, transcriptPath, sessionId: resolvedSessionId };
+	}
 
-	// Parse transcript — user messages for corrections
-	const messages = parseTranscript(transcriptPath);
+	const newLines = allLines.slice(skipLines);
 
-	// Parse tool results — detect failures (language-independent self-learning)
-	const toolFailures = parseToolResults(transcriptPath);
+	// Parse only new content
+	const messages = parseTranscriptFromLines(newLines);
+	const toolFailures = parseToolResultsFromLines(newLines);
 	for (const failure of toolFailures) {
 		logEpisode(brainRoot, 'tool-failure', failure.toolName, failure.errorText);
 	}
@@ -157,14 +173,12 @@ export function digestTranscript(brainRoot: string, transcriptPath: string, sess
 
 	if (corrections.length === 0 && toolFailures.length === 0) {
 		console.log(`\uD83D\uDCDD digest: no corrections found in session ${resolvedSessionId}`);
-		// Write empty audit log to mark as digested
-		writeAuditLog(brainRoot, resolvedSessionId, []);
+		writeAuditLog(brainRoot, resolvedSessionId, [], totalLines);
 		return { corrections: 0, skipped: messages.length, toolFailures: toolFailures.length, transcriptPath, sessionId: resolvedSessionId };
 	}
 
 	if (corrections.length === 0) {
-		// Tool failures logged but no user corrections — still mark as digested
-		writeAuditLog(brainRoot, resolvedSessionId, []);
+		writeAuditLog(brainRoot, resolvedSessionId, [], totalLines);
 		return { corrections: 0, skipped: messages.length, toolFailures: toolFailures.length, transcriptPath, sessionId: resolvedSessionId };
 	}
 
@@ -185,7 +199,7 @@ export function digestTranscript(brainRoot: string, transcriptPath: string, sess
 	}
 
 	// Write audit log
-	writeAuditLog(brainRoot, resolvedSessionId, auditEntries);
+	writeAuditLog(brainRoot, resolvedSessionId, auditEntries, totalLines);
 
 	console.log(`\uD83D\uDCDD digest: ${applied} correction(s) from session ${resolvedSessionId}`);
 	return {
@@ -198,12 +212,9 @@ export function digestTranscript(brainRoot: string, transcriptPath: string, sess
 }
 
 /**
- * Parse a Claude Code conversation JSONL transcript.
- * Returns user message texts only.
+ * Parse user messages from JSONL lines.
  */
-function parseTranscript(transcriptPath: string): string[] {
-	const content = readFileSync(transcriptPath, 'utf8');
-	const lines = content.split('\n').filter(Boolean);
+function parseTranscriptFromLines(lines: string[]): string[] {
 	const messages: string[] = [];
 
 	for (const line of lines) {
@@ -214,7 +225,6 @@ function parseTranscript(transcriptPath: string): string[] {
 			continue;
 		}
 
-		// Only process user messages
 		if (entry.type !== 'user') continue;
 		if (!entry.message || entry.message.role !== 'user') continue;
 
@@ -244,13 +254,28 @@ function extractText(content: string | Array<{ type: string; text?: string }> | 
 
 const MAX_FAILURES_PER_SESSION = 20;
 
+// Conservative patterns for detecting failures even when exit code is 0.
+// These fire when `is_error: false` (e.g. command wrapped in `|| true`).
+// Each must be specific enough to avoid false positives from normal output.
+const SOFT_ERROR_PATTERNS = [
+	/(?:^|\n)\S*(?:\(\w+\):\d+: )?command not found:/m,   // shell: command not found
+	/(?:^|\n)npm error\b/m,                                 // npm error (not npm warn)
+	/(?:^|\n)fatal: /m,                                      // git fatal
+];
+
 /**
- * Parse tool_result blocks from a Claude Code transcript.
+ * Parse tool_result blocks from a Claude Code transcript file.
  * Returns detected failures (exit code ≠ 0, is_error = true).
  */
 export function parseToolResults(transcriptPath: string): ToolFailure[] {
 	const content = readFileSync(transcriptPath, 'utf8');
-	const lines = content.split('\n').filter(Boolean);
+	return parseToolResultsFromLines(content.split('\n').filter(Boolean));
+}
+
+/**
+ * Parse tool_result blocks from JSONL lines.
+ */
+function parseToolResultsFromLines(lines: string[]): ToolFailure[] {
 	const failures: ToolFailure[] = [];
 
 	for (const line of lines) {
@@ -268,10 +293,14 @@ export function parseToolResults(transcriptPath: string): ToolFailure[] {
 
 		for (const block of entry.message.content) {
 			if (block.type !== 'tool_result') continue;
-			if (!block.is_error) continue;
 
-			const failure = detectToolFailure(block, entry.toolUseResult);
-			if (failure) failures.push(failure);
+			if (block.is_error) {
+				const failure = detectToolFailure(block, entry.toolUseResult);
+				if (failure) failures.push(failure);
+			} else {
+				const failure = detectSoftFailure(block, entry.toolUseResult);
+				if (failure) failures.push(failure);
+			}
 		}
 	}
 
@@ -341,6 +370,49 @@ export function detectToolFailure(
 	const toolName = firstLine.trim().slice(0, 80);
 
 	return { toolName, exitCode, errorText: errorText.slice(0, 500) };
+}
+
+/**
+ * Soft-detect a failure from a tool_result where is_error is false.
+ * Catches errors masked by `|| true` or `2>&1` by matching conservative
+ * patterns against stdout/stderr content.
+ */
+export function detectSoftFailure(
+	block: { content?: string | Array<{ type: string; text?: string }>; is_error?: boolean },
+	toolUseResult?: TranscriptLine['toolUseResult'],
+): ToolFailure | null {
+	// Extract text from block content
+	let text = '';
+	if (typeof block.content === 'string') {
+		text = block.content;
+	} else if (Array.isArray(block.content)) {
+		text = block.content
+			.filter((b) => b.type === 'text' && b.text)
+			.map((b) => b.text!)
+			.join('\n');
+	}
+
+	// Also include stderr from toolUseResult (if available)
+	if (toolUseResult && typeof toolUseResult === 'object') {
+		if (toolUseResult.stderr) text += '\n' + toolUseResult.stderr;
+	}
+
+	if (!text) return null;
+
+	for (const pattern of SOFT_ERROR_PATTERNS) {
+		const match = text.match(pattern);
+		if (match) {
+			// Find the line that matched for toolName
+			const matchedLine = text.split('\n').find((l) => pattern.test(l)) || 'unknown';
+			return {
+				toolName: `[soft] ${matchedLine.trim().slice(0, 70)}`,
+				exitCode: 0,
+				errorText: text.slice(0, 500),
+			};
+		}
+	}
+
+	return null;
 }
 
 /**
@@ -448,12 +520,31 @@ function extractKeywords(text: string): string[] {
 }
 
 /**
+ * Read audit meta from digest log. Returns lineCount if meta present, null otherwise.
+ */
+function readAuditMeta(logPath: string): AuditMeta | null {
+	if (!existsSync(logPath)) return null;
+	try {
+		const content = readFileSync(logPath, 'utf8');
+		const firstLine = content.split('\n')[0];
+		if (!firstLine) return null;
+		const parsed = JSON.parse(firstLine);
+		if (parsed._meta && typeof parsed.lineCount === 'number') {
+			return { lineCount: parsed.lineCount };
+		}
+	} catch { /* corrupted log — treat as missing */ }
+	return null;
+}
+
+/**
  * Write audit log for digest session.
+ * First line is always a _meta record with lineCount for incremental digest.
  */
 function writeAuditLog(
 	brainRoot: string,
 	sessionId: string,
 	entries: Array<{ correction: ExtractedCorrection; applied: boolean }>,
+	lineCount: number,
 ): void {
 	const logDir = join(brainRoot, DIGEST_LOG_DIR);
 	if (!existsSync(logDir)) {
@@ -461,7 +552,8 @@ function writeAuditLog(
 	}
 
 	const logPath = join(logDir, `${sessionId}.jsonl`);
-	const lines = entries.map((e) =>
+	const metaLine = JSON.stringify({ _meta: true, lineCount, ts: new Date().toISOString() });
+	const entryLines = entries.map((e) =>
 		JSON.stringify({
 			ts: new Date().toISOString(),
 			path: e.correction.path,
@@ -472,6 +564,5 @@ function writeAuditLog(
 		}),
 	);
 
-	// Even if no entries, write empty file as dedup marker
-	writeFileSync(logPath, lines.join('\n') + (lines.length > 0 ? '\n' : ''), 'utf8');
+	writeFileSync(logPath, [metaLine, ...entryLines].join('\n') + '\n', 'utf8');
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.1 (2026-04-02)
+
+Fix digest dedup + soft failure detection for masked errors.
+
+### Fixed
+- **Incremental digest** — digest now tracks processed line count via `_meta` in audit log. Re-running digest on a growing transcript (e.g. Stop hook after session resume) correctly processes only new lines instead of skipping the entire session.
+- **Soft failure detection** — tool failures masked by `|| true` (exit code 0, `is_error: false`) are now detected via conservative stdout/stderr pattern matching (`command not found`, `npm error`, `fatal:`). Tagged with `[soft]` prefix to distinguish from hard failures.
+
+### Added
+- 10 new tests (332 total): incremental digest scenarios, soft failure detection, false-positive guards
+
 ## 0.8.0 (2026-04-02)
 
 Voyager foundations — skill library, cross-agent learning, autonomous feedback loop.
