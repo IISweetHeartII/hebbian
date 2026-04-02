@@ -49,12 +49,13 @@ const NEGATION_PATTERNS = [
 	/^no[,.\s!]/i,
 	/\bdon[''\u2019]?t\s+use\b/i,
 	/\bavoid\b/i,
-	// Korean negation
+	// Korean negation — specific verb forms only to avoid matching incidental 않/대신 in explanations
 	/하지\s*마/,
 	/안\s*돼/,
-	/대신/,
 	/쓰지\s*마/,
-	/않/,
+	/[가-힣]+지\s*마/,
+	/하지\s*않/,  // "do not" specifically
+	/쓰지\s*않/,  // "do not use" specifically
 ];
 
 // Affirmation patterns — user is telling the AI TO do something
@@ -228,6 +229,9 @@ export function extractCorrections(messages: string[]): ExtractedCorrection[] {
 
 		// Skip skill base directory injections
 		if (/^Base directory for this skill:/i.test(text.trim())) continue;
+
+		// Skip bullet-list formatted text (likely assistant output injected into user turn)
+		if (/^[•·▸▶\-\*]\s/.test(text.trim())) continue;
 
 		// Check for correction patterns
 		const correction = detectCorrection(text);

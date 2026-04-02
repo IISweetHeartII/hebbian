@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.3 (2026-04-02)
+
+Further false positive reduction in digest.
+
+### Fixed
+- **Korean `않` pattern too broad** — bare `/않/` matched any Korean text containing 않 (e.g., code explanations like "보장되진 않습니다"). Replaced with verb-specific forms `/하지\s*않/`, `/쓰지\s*않/`.
+- **Bullet-list text filter** — messages starting with `•`, `·`, `▸`, `▶`, `-`, or `*` are now skipped. These indicate injected assistant output or formatted lists, not user corrections.
+- Removed overly broad `/대신/` ("instead") Korean pattern that could match incidental usage.
+
 ## 0.5.2 (2026-04-02)
 
 Same as 0.5.1 — fixes hardcoded VERSION constant in CLI (was still showing v0.5.0).
