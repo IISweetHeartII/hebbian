@@ -1,7 +1,7 @@
 <!-- HEBBIAN:START -->
-<!-- Generated: 2026-04-01T01:21:23 -->
+<!-- Generated: 2026-04-02T00:38:37 -->
 <!-- Axiom: Folder=Neuron | File=Trace | Path=Sentence -->
-<!-- Active: 9/9 neurons | Total activation: 8 -->
+<!-- Active: 5/5 neurons | Total activation: 12 -->
 
 ## hebbian Active Rules
 
@@ -25,7 +25,7 @@ Lower P always overrides higher P. bomb = full stop.
 | 💓 limbic | 0 | 0 |
 | 📝 hippocampus | 1 | 0 |
 | 👁️ sensors | 0 | 0 |
-| 🧠 cortex | 6 | 6 |
+| 🧠 cortex | 2 | 10 |
 | 🎭 ego | 0 | 0 |
 | 🎯 prefrontal | 0 | 0 |
 
