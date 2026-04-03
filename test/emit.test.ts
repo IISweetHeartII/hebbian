@@ -106,7 +106,7 @@ describe('emitRegionRules (Tier 3)', () => {
 		const output = emitRegionRules(cortex);
 
 		expect(output).toContain('cortex');
-		expect(output).toContain('지식/기술');
+		expect(output).toContain('knowledge/skills');
 	});
 
 	it('includes strength prefixes', () => {

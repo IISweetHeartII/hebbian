@@ -39,14 +39,14 @@ export const REGION_ICONS: Record<RegionName, string> = {
 	prefrontal: '🎯',
 };
 
-export const REGION_KO: Record<RegionName, string> = {
-	brainstem: '양심/본능',
-	limbic: '감정 필터',
-	hippocampus: '기록/기억',
-	sensors: '환경 제약',
-	cortex: '지식/기술',
-	ego: '성향/톤',
-	prefrontal: '목표/계획',
+export const REGION_DESC: Record<RegionName, string> = {
+	brainstem: 'conscience/instinct',
+	limbic: 'emotion filters',
+	hippocampus: 'memory/recall',
+	sensors: 'environment constraints',
+	cortex: 'knowledge/skills',
+	ego: 'personality/tone',
+	prefrontal: 'goals/planning',
 };
 
 export const EMIT_THRESHOLD = 5;

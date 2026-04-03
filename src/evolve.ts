@@ -206,7 +206,7 @@ Respond with a JSON array of actions:
 [{"type":"fire","path":"cortex/NO_console_log","reason":"fired 3 times in recent sessions"}]`;
 }
 
-// --- Pruning Prompt (청소부 mode) ---
+// --- Pruning Prompt (janitor mode) ---
 
 function buildPrunePrompt(summary: string, episodes: Episode[]): string {
 	const episodeLines = episodes.length > 0

@@ -5,7 +5,7 @@
 
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, appendFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { REGIONS, REGION_ICONS, REGION_KO } from './constants';
+import { REGIONS, REGION_ICONS, REGION_DESC } from './constants';
 import type { RegionName } from './constants';
 
 interface RegionTemplate {
@@ -64,7 +64,7 @@ export function initBrain(brainPath: string): void {
 
 		const template = REGION_TEMPLATES[regionName];
 		const icon = REGION_ICONS[regionName];
-		const ko = REGION_KO[regionName];
+		const ko = REGION_DESC[regionName];
 
 		// Write _rules.md template
 		writeFileSync(

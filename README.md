@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/MIT-green?style=flat-square" />
 </p>
 
-<p align="center"><a href="README.ko.md">한국어</a> · <a href="CHANGELOG.md">Changelog</a></p>
+<p align="center"><a href="CHANGELOG.md">Changelog</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
 
 # hebbian
 

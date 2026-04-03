@@ -11,7 +11,7 @@ import { join, dirname } from 'node:path';
 import { scanBrain } from './scanner';
 import { runSubsumption } from './subsumption';
 import {
-	REGIONS, REGION_ICONS, REGION_KO, EMIT_TARGETS,
+	REGIONS, REGION_ICONS, REGION_DESC, EMIT_TARGETS,
 	EMIT_THRESHOLD, SPOTLIGHT_DAYS, MARKER_START, MARKER_END,
 } from './constants';
 import type { RegionName } from './constants';
@@ -232,7 +232,7 @@ export function emitIndex(result: SubsumptionResult, brain: Brain): string {
  */
 export function emitRegionRules(region: Region): string {
 	const icon = REGION_ICONS[region.name as RegionName] || '';
-	const ko = REGION_KO[region.name as RegionName] || '';
+	const ko = REGION_DESC[region.name as RegionName] || '';
 	const active = region.neurons.filter((n) => !n.isDormant);
 	const dormant = region.neurons.filter((n) => n.isDormant);
 	const activation = active.reduce((sum, n) => sum + n.intensity, 0);

@@ -16,7 +16,7 @@ import { runDecay } from './decay';
 import { runDedup } from './dedup';
 import { writeAllTiers } from './emit';
 import { processInbox } from './inbox';
-import { REGIONS, REGION_ICONS, REGION_KO, type SignalType } from './constants';
+import { REGIONS, REGION_ICONS, REGION_DESC, type SignalType } from './constants';
 import type { RegionName } from './constants';
 
 let lastAPIActivity = Date.now();
@@ -56,7 +56,7 @@ function buildBrainJSON(brainRoot: string) {
 		regions: brain.regions.map((region) => ({
 			name: region.name,
 			icon: REGION_ICONS[region.name as RegionName] || '',
-			ko: REGION_KO[region.name as RegionName] || '',
+			ko: REGION_DESC[region.name as RegionName] || '',
 			priority: region.priority,
 			hasBomb: region.hasBomb,
 			neurons: region.neurons.map((n) => ({
