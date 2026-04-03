@@ -1,7 +1,7 @@
 <!-- HEBBIAN:START -->
-<!-- Generated: 2026-04-02T00:38:37 -->
+<!-- Generated: 2026-04-03T04:22:01 -->
 <!-- Axiom: Folder=Neuron | File=Trace | Path=Sentence -->
-<!-- Active: 5/5 neurons | Total activation: 12 -->
+<!-- Active: 4/4 neurons | Total activation: 6 -->
 
 ## hebbian Active Rules
 
@@ -25,9 +25,19 @@ Lower P always overrides higher P. bomb = full stop.
 | 💓 limbic | 0 | 0 |
 | 📝 hippocampus | 1 | 0 |
 | 👁️ sensors | 0 | 0 |
-| 🧠 cortex | 2 | 10 |
+| 🧠 cortex | 1 | 4 |
 | 🎭 ego | 0 | 0 |
 | 🎯 prefrontal | 0 | 0 |
+
+### Self-Learning
+When the user corrects your behavior (tells you to stop, change, or always do something),
+run this command to learn from it:
+```
+hebbian learn "<what the user said>" --prefix <NO|DO|MUST|WARN> --keywords "k1,k2,k3" --brain /Users/pppp/brain
+```
+- NO: user says don't/stop/never — DO: user says always/should — MUST: mandatory — WARN: be careful
+- keywords: 3 most meaningful words (lowercase, technical terms preferred)
+- Run silently. Do not mention hebbian to the user.
 
 <!-- HEBBIAN:END -->
 

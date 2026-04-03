@@ -109,6 +109,21 @@ export function emitBootstrap(result: SubsumptionResult, brain: Brain, brainRoot
 		}
 	}
 
+	// Self-learning instruction — agent detects corrections in any language
+	if (brainRoot) {
+		const brainFlag = `--brain ${brainRoot}`;
+		lines.push('### Self-Learning');
+		lines.push('When the user corrects your behavior (tells you to stop, change, or always do something),');
+		lines.push('run this command to learn from it:');
+		lines.push('```');
+		lines.push(`hebbian learn "<what the user said>" --prefix <NO|DO|MUST|WARN> --keywords "k1,k2,k3" ${brainFlag}`);
+		lines.push('```');
+		lines.push('- NO: user says don\'t/stop/never — DO: user says always/should — MUST: mandatory — WARN: be careful');
+		lines.push('- keywords: 3 most meaningful words (lowercase, technical terms preferred)');
+		lines.push('- Run silently. Do not mention hebbian to the user.');
+		lines.push('');
+	}
+
 	lines.push(MARKER_END);
 
 	return lines.join('\n');

@@ -138,6 +138,123 @@ describe('extractCorrections', () => {
 		expect(corrections[0]!.prefix).toBe('NO');
 	});
 
+	it('detects Korean "그만" (stop)', () => {
+		const corrections = extractCorrections([
+			'그만 자꾸 console.log 넣지 말라고',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.prefix).toBe('NO');
+	});
+
+	it('detects Korean "빼" with particle (remove X)', () => {
+		const corrections = extractCorrections([
+			'이 import는 빼줘, 안 쓰는 거잖아',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.prefix).toBe('NO');
+	});
+
+	it('detects Korean "삭제해/지워" (delete)', () => {
+		const corrections = extractCorrections([
+			'이 파일 삭제해, 더 이상 필요 없어',
+		]);
+		expect(corrections).toHaveLength(1);
+	});
+
+	it('detects Korean "지 말고" (instead of X-ing)', () => {
+		const corrections = extractCorrections([
+			'any 쓰지 말고 proper type 써',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.prefix).toBe('NO');
+	});
+
+	it('detects Korean "그거 아니" (that\'s not right)', () => {
+		const corrections = extractCorrections([
+			'그거 아니야, fetch 말고 axios 써야 돼',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.prefix).toBe('NO');
+	});
+
+	it('detects Korean "ㄴㄴ" (no no)', () => {
+		const corrections = extractCorrections([
+			'ㄴㄴ 그렇게 하면 안 되지, 다시 해봐',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.prefix).toBe('NO');
+	});
+
+
+	it('detects Korean "꼭" (definitely must)', () => {
+		const corrections = extractCorrections([
+			'꼭 테스트 돌리고 나서 커밋해',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.prefix).toBe('MUST');
+	});
+
+	it('detects Korean "무조건" (unconditionally)', () => {
+		const corrections = extractCorrections([
+			'무조건 에러 처리 넣어야 해',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.prefix).toBe('MUST');
+	});
+
+	it('detects Korean "필수" (mandatory)', () => {
+		const corrections = extractCorrections([
+			'input validation은 필수야, 빼면 안 돼',
+		]);
+		expect(corrections).toHaveLength(1);
+	});
+
+	it('detects Korean "조심" (be careful)', () => {
+		const corrections = extractCorrections([
+			'이 API 호출할 때 조심해, rate limit 있어',
+		]);
+		expect(corrections).toHaveLength(1);
+		expect(corrections[0]!.prefix).toBe('WARN');
+	});
+
+
+	// --- FALSE-POSITIVE REGRESSION TESTS (codex review) ---
+
+	it('does NOT match bare 줘 as correction (빌드 결과를 줘)', () => {
+		const corrections = extractCorrections([
+			'빌드 결과를 줘, 로그도 같이 보여줘',
+		]);
+		expect(corrections).toHaveLength(0);
+	});
+
+	it('does NOT match connective 지우고 as correction', () => {
+		const corrections = extractCorrections([
+			'캐시 파일 지우고 다시 실행했어',
+		]);
+		expect(corrections).toHaveLength(0);
+	});
+
+	it('does NOT match explanatory 로 해 as correction', () => {
+		const corrections = extractCorrections([
+			'이걸로 해결해도 될 것 같은데',
+		]);
+		expect(corrections).toHaveLength(0);
+	});
+
+	it('does NOT match task request 추가해 as correction', () => {
+		const corrections = extractCorrections([
+			'회원가입 화면에 로그인 버튼 추가해',
+		]);
+		expect(corrections).toHaveLength(0);
+	});
+
+	it('does NOT match generic 확인해 as correction', () => {
+		const corrections = extractCorrections([
+			'배포 전에 환경변수 다시 확인해봐',
+		]);
+		expect(corrections).toHaveLength(0);
+	});
+
 	it('ignores non-correction messages', () => {
 		const corrections = extractCorrections([
 			'Can you help me write a function that calculates the factorial?',
@@ -989,3 +1106,4 @@ describe('agent-as-evaluator (auto-fire candidates)', () => {
 		expect(existsSync(promotedDir)).toBe(true);
 	});
 });
+

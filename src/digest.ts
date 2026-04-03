@@ -66,29 +66,39 @@ const NEGATION_PATTERNS = [
 	/\binstead\b/i,
 	/^no[,.\s!]/i,
 	/\bavoid\b/i,
-	// Korean negation — require AI-directed imperative context:
-	// "X하지 마" (don't X) — must have a verb object before 지 마
-	/[을를은는도이가]\s*[가-힣]+지\s*마/,
-	// "X 하면 안 돼" (must not X) — conditional + prohibition
-	/하면\s*안\s*돼/,
-	// "X 쓰지 마" (don't use X) — explicit "don't use"
-	/쓰지\s*마/,
+	// Korean negation — imperative corrections:
+	/[을를은는도이가]\s*[가-힣]+지\s*마/,   // "X하지 마" (don't X) with particle
+	/하면\s*안\s*돼/,                       // "X 하면 안 돼" (must not X)
+	/쓰지\s*마/,                            // "쓰지 마" (don't use)
+	/그만/,                                 // "그만" (stop) — 그만해, 그만 좀
+	/[을를은는]\s*빼/,                      // "X 빼" (remove X) with particle
+	/지워[줘]?|삭제해/,                      // "지워/삭제해" (delete it) — not 지우고 (connective)
+	/[가-힣]+지\s*말고/,                    // "X지 말고" (instead of X-ing)
+	/그거\s*아니/,                           // "그거 아니야" (that's not right)
+	/ㄴㄴ|노노/,                            // "ㄴㄴ/노노" (no no — internet-style)
+	/안\s*돼[^요]?\s*[!.]/,                 // "안 돼!" standalone prohibition
 ];
 
 // Affirmation patterns — user is telling the AI TO do something
 const AFFIRMATION_PATTERNS = [
 	/\bshould\s+always\b/i,
 	/\buse\s+\w+\s+instead\b/i,
-	// Korean affirmation — require directive context
-	/항상\s*[가-힣]+[해하]/,  // "항상 X해" (always do X)
+	// Korean affirmation — directive commands:
+	/항상\s*[가-힣]+[해하]/,               // "항상 X해" (always do X)
+	/[을를]\s*[가-힣]*해\s*줘/,              // "X를 해줘" (do X for me) — literal 해줘, not bare 줘
+	/으로\s*해/,                            // "X으로 해" (do it as X) — literal 으로, not char class
+	/이렇게\s*해/,                          // "이렇게 해" (do it like this)
 ];
 
 // Must patterns — strong imperative ("you must X", "X is required")
 const MUST_PATTERNS = [
 	/\bmust\b/i,
 	/\brequired\b/i,
-	// Korean
-	/반드시/,
+	// Korean — strong directives:
+	/반드시/,                               // "반드시" (absolutely must)
+	/꼭\s*[가-힣]/,                         // "꼭 X해" (definitely do X)
+	/무조건/,                               // "무조건" (unconditionally)
+	/필수/,                                 // "필수" (mandatory)
 ];
 
 // Warn patterns — cautionary ("be careful with X", "watch out for X")
@@ -96,8 +106,10 @@ const WARN_PATTERNS = [
 	/\bcareful\b/i,
 	/\bwatch\s+out\b/i,
 	/\bwarning\b/i,
-	// Korean
-	/주의/,
+	// Korean — cautionary:
+	/주의/,                                 // "주의" (caution)
+	/조심/,                                 // "조심" (be careful)
+	/위험/,                                 // "위험" (dangerous)
 ];
 
 /**
@@ -453,9 +465,8 @@ export function extractCorrections(messages: string[]): ExtractedCorrection[] {
 		// Skip messages containing XML tags anywhere (system injections)
 		if (/<[a-zA-Z][a-zA-Z-]*>/.test(trimmed) && /<\/[a-zA-Z]/.test(trimmed)) continue;
 
-		// Skip narrative/explanatory messages (Korean conversational markers)
-		// These are stories or problem descriptions, not corrections to the AI
-		if (isNarrativeKorean(trimmed)) continue;
+		// Skip narrative/explanatory messages (conversational markers)
+		if (isNarrative(trimmed)) continue;
 
 		// Check for correction patterns
 		const correction = detectCorrection(text);
@@ -468,12 +479,10 @@ export function extractCorrections(messages: string[]): ExtractedCorrection[] {
 }
 
 /**
- * Detect if a Korean message is narrative/explanatory rather than a correction.
- * Looks for conversational storytelling markers that indicate the user is
- * describing a situation, not instructing the AI.
+ * Detect if a message is narrative/explanatory rather than a correction.
+ * Uses built-in Korean markers + any custom narrative markers from patterns.json.
  */
-function isNarrativeKorean(text: string): boolean {
-	// Count narrative markers — if enough are present, it's a story, not a correction
+function isNarrative(text: string): boolean {
 	const NARRATIVE_MARKERS = [
 		/이유는/,         // "the reason is..."
 		/예를\s*들면/,    // "for example..."
@@ -486,7 +495,6 @@ function isNarrativeKorean(text: string): boolean {
 		/거 같은데/,      // "it seems like..." (speculation)
 		/어떻게\s*생각/,  // "what do you think?" (asking opinion)
 	];
-
 	const markerCount = NARRATIVE_MARKERS.filter((p) => p.test(text)).length;
 	// 2+ narrative markers = definitely a story, not a correction
 	return markerCount >= 2;
@@ -526,6 +534,7 @@ function autoFireCandidates(brainRoot: string, corrections: ExtractedCorrection[
 /**
  * Detect if a message is a correction and extract structured data.
  * Priority: NO > MUST > WARN > DO
+ * When custom patterns are provided (from brain/patterns.json), they extend built-in patterns.
  */
 function detectCorrection(text: string): ExtractedCorrection | null {
 	const isNegation = NEGATION_PATTERNS.some((p) => p.test(text));
@@ -538,11 +547,12 @@ function detectCorrection(text: string): ExtractedCorrection | null {
 	// Confidence: count how many distinct categories matched
 	const categories = [isNegation, isMust, isWarn, isAffirmation].filter(Boolean).length;
 
-	// For Korean-majority text, require either 2+ categories OR a very strong single signal
-	const koreanRatio = (text.match(/[\uAC00-\uD7AF]/g) || []).length / Math.max(text.length, 1);
-	if (koreanRatio > 0.3 && categories < 2) {
-		// Single Korean marker — only accept if the message is short (direct command)
-		if (text.length > 100) return null;
+	// For non-Latin-majority text, require either 2+ categories OR a short direct command.
+	// This prevents long narrative text with accidental keyword matches from becoming corrections.
+	const latinRatio = (text.match(/[a-zA-Z]/g) || []).length / Math.max(text.length, 1);
+	if (latinRatio < 0.3 && categories < 2) {
+		// Single marker in non-Latin text — accept if message is reasonably short (direct command)
+		if (text.length > 150) return null;
 	}
 
 	let prefix: 'NO' | 'MUST' | 'WARN' | 'DO';

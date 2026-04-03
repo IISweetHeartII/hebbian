@@ -34,6 +34,10 @@ export { digestTranscript, extractCorrections, readHookInput, parseToolResults, 
 export type { DigestResult, ExtractedCorrection, ToolFailure } from './digest';
 export { resolveBrainRoot, resolveAgentBrain, resolveSharedBrain } from './constants';
 
+// Agent-Driven Learning
+export { learn } from './learn';
+export type { LearnOptions, LearnResult } from './learn';
+
 // Phase 4: Candidate Staging + Evolve Engine
 export { growCandidate, promoteCandidates, listCandidates, toCandidatePath, fromCandidatePath, propagateToShared } from './candidates';
 export type { CandidateInfo, PromoteResult } from './candidates';

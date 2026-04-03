@@ -54,6 +54,7 @@ COMMANDS:
   inbox                           Process corrections inbox
   claude install|uninstall|status Manage Claude Code hooks
   digest [--transcript <path>]    Extract corrections from conversation
+  learn "<text>" [--prefix P]      Agent-driven learning (any language)
   candidates [promote]            List candidates or promote graduated ones
   evolve [--dry-run]              (optional) LLM-powered evolution (Gemini)
   evolve prune [--dry-run]        (optional) Pruning mode — remove stale neurons
@@ -104,6 +105,8 @@ async function main(argv: string[]): Promise<void> {
 			days: { type: 'string', short: 'd' },
 			port: { type: 'string', short: 'p' },
 			transcript: { type: 'string', short: 't' },
+			prefix: { type: 'string' },
+			keywords: { type: 'string', short: 'k' },
 			'dry-run': { type: 'boolean' },
 			global: { type: 'boolean', short: 'g' },
 			agent: { type: 'string', short: 'a' },
@@ -291,6 +294,27 @@ async function main(argv: string[]): Promise<void> {
 					console.error('  Or pipe hook input via stdin (Claude Code Stop hook)');
 					process.exit(1);
 				}
+			}
+			break;
+		}
+		case 'learn': {
+			const text = positionals.slice(1).join(' ');
+			if (!text) {
+				console.error('Usage: hebbian learn "correction text" [--prefix NO|DO|MUST|WARN] [--keywords "k1,k2,k3"]');
+				process.exit(1);
+			}
+			const { learn } = await import('./learn');
+			const prefixFlag = values.prefix as string | undefined;
+			const keywordsFlag = values.keywords as string | undefined;
+			const result = learn(brainRoot, {
+				text,
+				prefix: prefixFlag,
+				keywords: keywordsFlag ? keywordsFlag.split(',').map((k: string) => k.trim()) : undefined,
+			});
+			if (result) {
+				console.log(`📝 learned: ${result.path} (${result.source})`);
+			} else {
+				console.log('⏭️ no correction detected');
 			}
 			break;
 		}

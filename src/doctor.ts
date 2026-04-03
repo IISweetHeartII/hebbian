@@ -5,6 +5,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
 import { REGIONS } from './constants';
 
@@ -81,39 +82,62 @@ export async function runDoctor(brainRoot: string): Promise<DoctorResult> {
 
 	// ── Claude Code hooks ──────────────────────────────────────────────
 	console.log('\nClaude Code hooks');
-	const settingsPath = join(process.cwd(), '.claude', 'settings.local.json');
-	if (!existsSync(settingsPath)) {
-		warn('No .claude/settings.local.json found', 'hebbian claude install');
-	} else {
+	const localSettingsPath = join(process.cwd(), '.claude', 'settings.local.json');
+	const globalSettingsPath = join(homedir(), '.claude', 'settings.json');
+
+	// Check both local and global settings for hooks
+	let hasStop = false;
+	let hasStart = false;
+	let hookSource = '';
+
+	for (const settingsPath of [localSettingsPath, globalSettingsPath]) {
+		if (!existsSync(settingsPath)) continue;
 		try {
 			const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
 				hooks?: Record<string, unknown[]>;
 			};
 			const hooks = settings.hooks || {};
-			const hasStop = Object.entries(hooks).some(([event, entries]) =>
-				event === 'Stop' && Array.isArray(entries) && entries.some((e: unknown) =>
-					typeof e === 'object' && e !== null && 'command' in e &&
-					typeof (e as { command?: unknown }).command === 'string' &&
-					(e as { command: string }).command.includes('hebbian digest'),
-				),
-			);
-			const hasStart = Object.entries(hooks).some(([event, entries]) =>
-				event === 'SessionStart' && Array.isArray(entries) && entries.some((e: unknown) =>
-					typeof e === 'object' && e !== null && 'command' in e &&
-					typeof (e as { command?: unknown }).command === 'string' &&
-					(e as { command: string }).command.includes('hebbian emit'),
-				),
-			);
 
-			if (hasStop && hasStart) {
-				ok('SessionStart + Stop hooks installed');
-			} else {
-				if (!hasStart) warn('SessionStart hook missing', 'hebbian claude install');
-				if (!hasStop) warn('Stop hook missing', 'hebbian claude install');
+			// Traverse nested hook structure: hooks[event][].hooks[].command
+			const findCommand = (event: string, keyword: string): boolean =>
+				Object.entries(hooks).some(([ev, entries]) =>
+					ev === event && Array.isArray(entries) && entries.some((entry: unknown) => {
+						if (typeof entry !== 'object' || entry === null) return false;
+						const e = entry as Record<string, unknown>;
+						// Check direct command (flat format)
+						if (typeof e.command === 'string' && (e.command as string).includes(keyword)) return true;
+						// Check nested hooks[].command (Claude Code format)
+						if (Array.isArray(e.hooks)) {
+							return (e.hooks as unknown[]).some((h: unknown) =>
+								typeof h === 'object' && h !== null &&
+								typeof (h as Record<string, unknown>).command === 'string' &&
+								((h as Record<string, unknown>).command as string).includes(keyword),
+							);
+						}
+						return false;
+					}),
+				);
+
+			if (!hasStop && findCommand('Stop', 'hebbian digest')) {
+				hasStop = true;
+				hookSource = settingsPath === globalSettingsPath ? 'global' : 'local';
+			}
+			if (!hasStart && findCommand('SessionStart', 'hebbian emit')) {
+				hasStart = true;
+				if (!hookSource) hookSource = settingsPath === globalSettingsPath ? 'global' : 'local';
 			}
 		} catch {
-			fail('Malformed .claude/settings.local.json', 'hebbian claude install');
+			warn(`Malformed ${settingsPath === globalSettingsPath ? '~/.claude/settings.json' : '.claude/settings.local.json'}`, 'Check JSON syntax');
 		}
+	}
+
+	if (hasStop && hasStart) {
+		ok(`SessionStart + Stop hooks installed (${hookSource})`);
+	} else if (!hasStop && !hasStart) {
+		warn('No hebbian hooks found (checked local + global)', 'hebbian claude install');
+	} else {
+		if (!hasStart) warn('SessionStart hook missing', 'hebbian claude install');
+		if (!hasStop) warn('Stop hook missing', 'hebbian claude install');
 	}
 
 	// ── npx path resolution ────────────────────────────────────────────
